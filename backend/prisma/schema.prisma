@@ -9,7 +9,230 @@ datasource db {
   directUrl = env("DIRECT_URL")
 }
 
-model HealthCheck {
-  id        Int      @id @default(autoincrement())
+enum Role {
+  ADMIN
+  TEACHER
+  STUDENT
+}
+
+enum Sex {
+  MALE
+  FEMALE
+}
+
+enum StudentStatus {
+  ACTIVE
+  INACTIVE
+  GRADUATED
+  TRANSFERRED
+  DROPPED
+}
+
+enum EnrollmentStatus {
+  ENROLLED
+  DROPPED
+  COMPLETED
+}
+
+enum AttendanceStatus {
+  PRESENT
+  ABSENT
+  LATE
+  EXCUSED
+}
+
+model User {
+  id           String    @id @default(cuid())
+  email        String    @unique
+  passwordHash String
+  role         Role
+  firstName    String
+  lastName     String
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+  student      Student?
+  teacher      Teacher?
+  auditLogs    AuditLog[]
+}
+
+model Student {
+  id               String          @id @default(cuid())
+  studentNo        String          @unique
+  userId           String?         @unique
+  firstName        String
+  middleName       String?
+  lastName         String
+  sex              Sex
+  birthDate        DateTime?
+  status           StudentStatus   @default(ACTIVE)
+  createdAt        DateTime        @default(now())
+  updatedAt        DateTime        @updatedAt
+  user             User?           @relation(fields: [userId], references: [id], onDelete: SetNull)
+  enrollments      Enrollment[]
+  attendanceRecords Attendance[]
+  grades           Grade[]
+
+  @@index([userId])
+}
+
+model Teacher {
+  id          String         @id @default(cuid())
+  employeeNo  String         @unique
+  userId      String?        @unique
+  firstName   String
+  middleName  String?
+  lastName    String
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+  user        User?          @relation(fields: [userId], references: [id], onDelete: SetNull)
+  offerings   ClassOffering[]
+
+  @@index([userId])
+}
+
+model SchoolYear {
+  id             String         @id @default(cuid())
+  name           String         @unique
+  startDate      DateTime
+  endDate        DateTime
+  isCurrent      Boolean        @default(false)
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+  terms          Term[]
+  enrollments    Enrollment[]
+  classOfferings ClassOffering[]
+}
+
+model Term {
+  id             String         @id @default(cuid())
+  schoolYearId   String
+  name           String
+  termNumber     Int
+  startDate      DateTime
+  endDate        DateTime
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+  schoolYear     SchoolYear     @relation(fields: [schoolYearId], references: [id], onDelete: Restrict)
+  classOfferings ClassOffering[]
+  grades         Grade[]
+
+  @@unique([schoolYearId, termNumber])
+  @@index([schoolYearId])
+}
+
+model Subject {
+  id             String         @id @default(cuid())
+  code           String         @unique
+  name           String
+  gradeLevel     Int
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+  classOfferings ClassOffering[]
+}
+
+model Section {
+  id             String         @id @default(cuid())
+  name           String
+  gradeLevel     Int
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+  enrollments    Enrollment[]
+  classOfferings ClassOffering[]
+
+  @@unique([name, gradeLevel])
+}
+
+model Enrollment {
+  id           String           @id @default(cuid())
+  studentId    String
+  schoolYearId String
+  sectionId    String?
+  status       EnrollmentStatus @default(ENROLLED)
+  enrolledAt   DateTime         @default(now())
+  createdAt    DateTime         @default(now())
+  updatedAt    DateTime         @updatedAt
+  student      Student          @relation(fields: [studentId], references: [id], onDelete: Restrict)
+  schoolYear   SchoolYear       @relation(fields: [schoolYearId], references: [id], onDelete: Restrict)
+  section      Section?         @relation(fields: [sectionId], references: [id], onDelete: SetNull)
+
+  @@unique([studentId, schoolYearId])
+  @@index([studentId])
+  @@index([schoolYearId])
+  @@index([sectionId])
+}
+
+model ClassOffering {
+  id           String     @id @default(cuid())
+  subjectId    String
+  sectionId    String
+  teacherId    String
+  schoolYearId String
+  termId       String
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+  subject      Subject    @relation(fields: [subjectId], references: [id], onDelete: Restrict)
+  section      Section    @relation(fields: [sectionId], references: [id], onDelete: Restrict)
+  teacher      Teacher    @relation(fields: [teacherId], references: [id], onDelete: Restrict)
+  schoolYear   SchoolYear @relation(fields: [schoolYearId], references: [id], onDelete: Restrict)
+  term         Term       @relation(fields: [termId], references: [id], onDelete: Restrict)
+  attendance   Attendance[]
+  grades       Grade[]
+
+  @@unique([subjectId, sectionId, termId])
+  @@index([subjectId])
+  @@index([sectionId])
+  @@index([teacherId])
+  @@index([schoolYearId])
+  @@index([termId])
+}
+
+model Attendance {
+  id             String           @id @default(cuid())
+  studentId      String
+  classOfferingId String
+  date           DateTime         @db.Date
+  status         AttendanceStatus
+  note           String?
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
+  student        Student          @relation(fields: [studentId], references: [id], onDelete: Restrict)
+  classOffering  ClassOffering    @relation(fields: [classOfferingId], references: [id], onDelete: Restrict)
+
+  @@unique([studentId, classOfferingId, date])
+  @@index([studentId])
+  @@index([classOfferingId])
+}
+
+model Grade {
+  id             String        @id @default(cuid())
+  studentId      String
+  classOfferingId String
+  termId         String
+  score          Decimal       @db.Decimal(5, 2)
+  remarks        String?
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+  student        Student       @relation(fields: [studentId], references: [id], onDelete: Restrict)
+  classOffering  ClassOffering @relation(fields: [classOfferingId], references: [id], onDelete: Restrict)
+  term           Term          @relation(fields: [termId], references: [id], onDelete: Restrict)
+
+  @@unique([studentId, classOfferingId, termId])
+  @@index([studentId])
+  @@index([classOfferingId])
+  @@index([termId])
+}
+
+model AuditLog {
+  id        String   @id @default(cuid())
+  userId    String?
+  action    String
+  entity    String
+  entityId  String?
+  details   Json?
   createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  user      User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([userId])
+  @@index([entity, entityId])
 }
