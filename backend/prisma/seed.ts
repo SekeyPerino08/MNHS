@@ -32,7 +32,13 @@ async function seed(): Promise<void> {
   for (const details of teacherDetails) {
     const user = await prisma.user.upsert({
       where: { email: details.email },
-      update: { role: Role.TEACHER, firstName: details.firstName, lastName: details.lastName },
+      update: {
+        passwordHash,
+        role: Role.TEACHER,
+        isActive: true,
+        firstName: details.firstName,
+        lastName: details.lastName,
+      },
       create: {
         email: details.email,
         passwordHash,
