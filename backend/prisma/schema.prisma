@@ -86,10 +86,14 @@ model Teacher {
   firstName   String
   middleName  String?
   lastName    String
+  department  String?
+  contactNo   String?
+  isActive    Boolean        @default(true)
   createdAt   DateTime       @default(now())
   updatedAt   DateTime       @updatedAt
   user        User?          @relation(fields: [userId], references: [id], onDelete: SetNull)
   offerings   ClassOffering[]
+  advisedSections Section[]  @relation("SectionAdviser")
 
   @@index([userId])
 }
@@ -105,6 +109,7 @@ model SchoolYear {
   terms          Term[]
   enrollments    Enrollment[]
   classOfferings ClassOffering[]
+  sections       Section[]
 }
 
 model Term {
@@ -128,6 +133,7 @@ model Subject {
   id             String         @id @default(cuid())
   code           String         @unique
   name           String
+  description    String?
   gradeLevel     Int
   createdAt      DateTime       @default(now())
   updatedAt      DateTime       @updatedAt
@@ -138,12 +144,19 @@ model Section {
   id             String         @id @default(cuid())
   name           String
   gradeLevel     Int
+  schoolYearId   String
+  adviserId      String?
   createdAt      DateTime       @default(now())
   updatedAt      DateTime       @updatedAt
+  schoolYear     SchoolYear     @relation(fields: [schoolYearId], references: [id], onDelete: Restrict)
+  adviser        Teacher?       @relation("SectionAdviser", fields: [adviserId], references: [id], onDelete: SetNull)
   enrollments    Enrollment[]
   classOfferings ClassOffering[]
 
-  @@unique([name, gradeLevel])
+  @@unique([schoolYearId, gradeLevel, name])
+  @@unique([schoolYearId, adviserId])
+  @@index([schoolYearId])
+  @@index([adviserId])
 }
 
 model Enrollment {

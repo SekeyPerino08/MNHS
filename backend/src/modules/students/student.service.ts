@@ -1,7 +1,6 @@
-import bcrypt from "bcryptjs";
-import { randomBytes } from "node:crypto";
-import { EnrollmentStatus, Prisma, Role, StudentStatus } from "@prisma/client";
+import { EnrollmentStatus, Prisma, StudentStatus } from "@prisma/client";
 import { prisma } from "../../lib/prisma.js";
+import { createPersonAccount, setLinkedUserActive } from "../../services/account.service.js";
 import { logAudit } from "../../services/audit.service.js";
 import { AppError } from "../../utils/AppError.js";
 import { buildPaginationMeta, parsePagination } from "../../utils/pagination.js";
@@ -297,20 +296,14 @@ export async function updateStudentStatus(id: string, input: UpdateStatusInput, 
         data: { status: input.status },
       });
       if (student.userId && input.status === StudentStatus.ACTIVE) {
-        await transaction.user.update({
-          where: { id: student.userId },
-          data: { isActive: true },
-        });
+        await setLinkedUserActive(transaction, student.userId, true);
       } else if (
         student.userId &&
         (input.status === StudentStatus.INACTIVE ||
           input.status === StudentStatus.DROPPED ||
           input.status === StudentStatus.TRANSFERRED)
       ) {
-        await transaction.user.update({
-          where: { id: student.userId },
-          data: { isActive: false },
-        });
+        await setLinkedUserActive(transaction, student.userId, false);
       }
       return { student: result, previousStatus: student.status };
     });
@@ -334,67 +327,19 @@ export async function updateStudentStatus(id: string, input: UpdateStatusInput, 
 }
 
 export async function createStudentAccount(id: string, input: CreateAccountInput, request?: Request) {
-  const temporaryPassword = input.temporaryPassword ?? randomBytes(24).toString("base64url");
-  const passwordHash = await bcrypt.hash(temporaryPassword, 12);
-
-  try {
-    const created = await prisma.$transaction(async (transaction) => {
-      const student = await transaction.student.findUnique({
-        where: { id },
-        select: { id: true, userId: true, firstName: true, lastName: true, status: true },
-      });
-      if (!student) {
-        throw new AppError("Student not found", 404);
-      }
-      if (student.userId) {
-        throw new AppError("This student already has an account", 409, "ACCOUNT_EXISTS");
-      }
-      const existingUser = await transaction.user.findUnique({
-        where: { email: input.email },
-        select: { id: true },
-      });
-      if (existingUser) {
-        throw new AppError("This email address is already in use", 409, "EMAIL_EXISTS");
-      }
-
-      const user = await transaction.user.create({
-        data: {
-          email: input.email,
-          passwordHash,
-          role: Role.STUDENT,
-          isActive: student.status === StudentStatus.ACTIVE,
-          firstName: student.firstName,
-          lastName: student.lastName,
-          student: { connect: { id: student.id } },
-        },
-        select: { id: true, email: true, role: true, isActive: true },
-      });
-      return { studentId: student.id, user };
-    });
-
-    await logAudit({
-      userId: request?.user?.id,
-      action: "ACCOUNT_CREATED",
-      entity: "Student",
-      entityId: id,
-      details: { email: input.email },
-      ipAddress: getRequestIp(request),
-    });
-    return { ...created, temporaryPassword };
-  } catch (error) {
-    if (isPrismaKnownError(error, "P2025")) {
-      throw new AppError("Student not found", 404);
-    }
-    if (isPrismaKnownError(error, "P2002")) {
-      const target = error.meta?.target;
-      if (
-        (Array.isArray(target) && target.includes("email")) ||
-        (typeof target === "string" && target.includes("email"))
-      ) {
-        throw new AppError("This email address is already in use", 409, "EMAIL_EXISTS");
-      }
-      throw new AppError("This student already has an account", 409, "ACCOUNT_EXISTS");
-    }
-    throw error;
-  }
+  const created = await createPersonAccount({
+    kind: "student",
+    personId: id,
+    email: input.email,
+    temporaryPassword: input.temporaryPassword,
+  });
+  await logAudit({
+    userId: request?.user?.id,
+    action: "ACCOUNT_CREATED",
+    entity: "Student",
+    entityId: id,
+    details: { email: input.email },
+    ipAddress: getRequestIp(request),
+  });
+  return { studentId: id, ...created };
 }

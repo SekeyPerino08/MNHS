@@ -73,6 +73,10 @@ async function seed(): Promise<void> {
       isCurrent: true,
     },
   });
+  await prisma.schoolYear.updateMany({
+    where: { id: { not: schoolYear.id } },
+    data: { isCurrent: false },
+  });
 
   const terms = [];
   const termDates = [
@@ -87,13 +91,13 @@ async function seed(): Promise<void> {
       await prisma.term.upsert({
         where: { schoolYearId_termNumber: { schoolYearId: schoolYear.id, termNumber: index + 1 } },
         update: {
-          name: `Quarter ${index + 1}`,
+          name: ["1st Quarter", "2nd Quarter", "3rd Quarter", "4th Quarter"][index],
           startDate: date(startDate),
           endDate: date(endDate),
         },
         create: {
           schoolYearId: schoolYear.id,
-          name: `Quarter ${index + 1}`,
+          name: ["1st Quarter", "2nd Quarter", "3rd Quarter", "4th Quarter"][index],
           termNumber: index + 1,
           startDate: date(startDate),
           endDate: date(endDate),
@@ -120,9 +124,15 @@ async function seed(): Promise<void> {
   }
 
   const section = await prisma.section.upsert({
-    where: { name_gradeLevel: { name: "Rizal", gradeLevel: 7 } },
+    where: {
+      schoolYearId_gradeLevel_name: {
+        schoolYearId: schoolYear.id,
+        gradeLevel: 7,
+        name: "Rizal",
+      },
+    },
     update: {},
-    create: { name: "Rizal", gradeLevel: 7 },
+    create: { name: "Rizal", gradeLevel: 7, schoolYearId: schoolYear.id },
   });
 
   const studentDetails = [
