@@ -2,6 +2,8 @@ export class ApiError extends Error {
   constructor(
     public readonly status: number,
     message: string,
+    public readonly code?: string,
+    public readonly details?: unknown,
   ) {
     super(message);
     this.name = "ApiError";
@@ -45,7 +47,11 @@ export async function apiFetch<T>(path: string, options: ApiOptions = {}): Promi
       typeof payload.message === "string"
         ? payload.message
         : response.statusText || "Request failed";
-    throw new ApiError(response.status, message);
+    const code =
+      typeof payload === "object" && payload !== null && "code" in payload && typeof payload.code === "string"
+        ? payload.code
+        : undefined;
+    throw new ApiError(response.status, message, code, payload);
   }
 
   return payload as T;

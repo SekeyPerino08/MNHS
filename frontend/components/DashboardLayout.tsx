@@ -3,6 +3,7 @@
 import type { ReactNode } from "react";
 import { useState } from "react";
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { Menu, X, GraduationCap } from "lucide-react";
 import { useAuth } from "../providers/AuthProvider";
 import { userDisplayName } from "../lib/auth";
@@ -33,6 +34,7 @@ const navigation: Record<Role, { label: string; href: string }[]> = {
 export function DashboardLayout({ children }: Readonly<{ children: ReactNode }>) {
   const { user, logout } = useAuth();
   const [menuOpen, setMenuOpen] = useState(false);
+  const pathname = usePathname();
   if (!user) return null;
 
   const links = navigation[user.role];
@@ -53,23 +55,26 @@ export function DashboardLayout({ children }: Readonly<{ children: ReactNode }>)
         </button>
       </div>
       <nav className="flex-1 space-y-1 p-4" aria-label="Main navigation">
-        {links.map((link, index) => (
+        {links.map((link) => {
+          const isActive = pathname === link.href || (link.href !== "/admin" && link.href !== "/teacher" && link.href !== "/student" && pathname.startsWith(`${link.href}/`));
+          return (
           <Link
             key={link.href}
             href={link.href}
             onClick={() => setMenuOpen(false)}
+            aria-current={isActive ? "page" : undefined}
             className={`flex items-center justify-between rounded-xl px-4 py-3 text-sm font-medium ${
-              index === 0
+              isActive
                 ? "bg-indigo-50 text-indigo-700"
                 : "text-slate-600 hover:bg-slate-50 hover:text-slate-900"
             }`}
           >
             <span>{link.label}</span>
-            {index > 0 && (
+            {link.href !== `/${user.role.toLowerCase()}` && (
               <span className="text-xs font-normal text-slate-400">Coming soon</span>
             )}
           </Link>
-        ))}
+        );})}
       </nav>
       <div className="border-t border-slate-100 p-4 text-xs text-slate-400">
         School Management System
