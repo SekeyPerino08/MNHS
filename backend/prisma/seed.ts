@@ -6,18 +6,22 @@ const prisma = new PrismaClient();
 const date = (value: string): Date => new Date(`${value}T00:00:00.000Z`);
 
 async function seed(): Promise<void> {
-  const adminPassword = process.env.SEED_ADMIN_PASSWORD;
-  if (!adminPassword) {
-    throw new Error("SEED_ADMIN_PASSWORD must be set before running the Prisma seed.");
-  }
-
-  const passwordHash = await bcrypt.hash(adminPassword, 12);
+  const passwordHashes = {
+    admin: await bcrypt.hash("admin1234", 12),
+    teacher: await bcrypt.hash("teacher1234", 12),
+    student: await bcrypt.hash("student1234", 12),
+  };
   await prisma.user.upsert({
     where: { email: "admin@mnhs.local" },
-    update: { passwordHash, role: Role.ADMIN, firstName: "School", lastName: "Administrator" },
+    update: {
+      passwordHash: passwordHashes.admin,
+      role: Role.ADMIN,
+      firstName: "School",
+      lastName: "Administrator",
+    },
     create: {
       email: "admin@mnhs.local",
-      passwordHash,
+      passwordHash: passwordHashes.admin,
       role: Role.ADMIN,
       firstName: "School",
       lastName: "Administrator",
@@ -33,7 +37,7 @@ async function seed(): Promise<void> {
     const user = await prisma.user.upsert({
       where: { email: details.email },
       update: {
-        passwordHash,
+        passwordHash: passwordHashes.teacher,
         role: Role.TEACHER,
         isActive: true,
         firstName: details.firstName,
@@ -41,7 +45,7 @@ async function seed(): Promise<void> {
       },
       create: {
         email: details.email,
-        passwordHash,
+        passwordHash: passwordHashes.teacher,
         role: Role.TEACHER,
         firstName: details.firstName,
         lastName: details.lastName,
@@ -161,7 +165,7 @@ async function seed(): Promise<void> {
         ? await prisma.user.upsert({
             where: { email: `student${index + 1}@school.test` },
             update: {
-              passwordHash,
+              passwordHash: passwordHashes.student,
               role: Role.STUDENT,
               isActive: true,
               firstName,
@@ -169,7 +173,7 @@ async function seed(): Promise<void> {
             },
             create: {
               email: `student${index + 1}@school.test`,
-              passwordHash,
+              passwordHash: passwordHashes.student,
               role: Role.STUDENT,
               isActive: true,
               firstName,
