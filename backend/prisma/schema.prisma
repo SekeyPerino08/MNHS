@@ -48,6 +48,7 @@ model User {
   role         Role
   firstName    String
   lastName     String
+  isActive     Boolean   @default(true)
   createdAt    DateTime  @default(now())
   updatedAt    DateTime  @updatedAt
   student      Student?
@@ -229,6 +230,7 @@ model AuditLog {
   entity    String
   entityId  String?
   details   Json?
+  ipAddress String?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
   user      User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
