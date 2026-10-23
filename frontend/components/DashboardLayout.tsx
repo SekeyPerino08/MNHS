@@ -1,0 +1,130 @@
+"use client";
+
+import type { ReactNode } from "react";
+import { useState } from "react";
+import Link from "next/link";
+import { Menu, X, GraduationCap } from "lucide-react";
+import { useAuth } from "../providers/AuthProvider";
+import { userDisplayName } from "../lib/auth";
+import type { Role } from "../types/auth";
+
+const navigation: Record<Role, { label: string; href: string }[]> = {
+  ADMIN: [
+    { label: "Dashboard", href: "/admin" },
+    { label: "Students", href: "/admin/students" },
+    { label: "Teachers", href: "/admin/teachers" },
+    { label: "Sections", href: "/admin/sections" },
+    { label: "Subjects", href: "/admin/subjects" },
+    { label: "Enrollment", href: "/admin/enrollment" },
+  ],
+  TEACHER: [
+    { label: "Dashboard", href: "/teacher" },
+    { label: "My Classes", href: "/teacher/classes" },
+    { label: "Attendance", href: "/teacher/attendance" },
+    { label: "Grades", href: "/teacher/grades" },
+  ],
+  STUDENT: [
+    { label: "Dashboard", href: "/student" },
+    { label: "My Grades", href: "/student/grades" },
+    { label: "My Attendance", href: "/student/attendance" },
+  ],
+};
+
+export function DashboardLayout({ children }: Readonly<{ children: ReactNode }>) {
+  const { user, logout } = useAuth();
+  const [menuOpen, setMenuOpen] = useState(false);
+  if (!user) return null;
+
+  const links = navigation[user.role];
+  const sidebar = (
+    <aside className="flex h-full w-72 flex-col border-r border-slate-200 bg-white">
+      <div className="flex h-20 items-center gap-3 border-b border-slate-100 px-6">
+        <div className="rounded-xl bg-indigo-600 p-2 text-white">
+          <GraduationCap aria-hidden="true" size={22} />
+        </div>
+        <span className="font-semibold text-slate-900">School Portal</span>
+        <button
+          type="button"
+          className="ml-auto rounded-lg p-2 text-slate-500 hover:bg-slate-100 lg:hidden"
+          onClick={() => setMenuOpen(false)}
+          aria-label="Close navigation menu"
+        >
+          <X size={20} />
+        </button>
+      </div>
+      <nav className="flex-1 space-y-1 p-4" aria-label="Main navigation">
+        {links.map((link, index) => (
+          <Link
+            key={link.href}
+            href={link.href}
+            onClick={() => setMenuOpen(false)}
+            className={`flex items-center justify-between rounded-xl px-4 py-3 text-sm font-medium ${
+              index === 0
+                ? "bg-indigo-50 text-indigo-700"
+                : "text-slate-600 hover:bg-slate-50 hover:text-slate-900"
+            }`}
+          >
+            <span>{link.label}</span>
+            {index > 0 && (
+              <span className="text-xs font-normal text-slate-400">Coming soon</span>
+            )}
+          </Link>
+        ))}
+      </nav>
+      <div className="border-t border-slate-100 p-4 text-xs text-slate-400">
+        School Management System
+      </div>
+    </aside>
+  );
+
+  return (
+    <div className="flex min-h-screen bg-slate-50">
+      <div className="hidden lg:block">{sidebar}</div>
+      {menuOpen && (
+        <div className="fixed inset-0 z-40 lg:hidden">
+          <button
+            type="button"
+            aria-label="Close navigation menu"
+            className="absolute inset-0 bg-slate-950/40"
+            onClick={() => setMenuOpen(false)}
+          />
+          <div className="relative h-full">{sidebar}</div>
+        </div>
+      )}
+      <div className="flex min-w-0 flex-1 flex-col">
+        <header className="sticky top-0 z-20 flex h-20 items-center justify-between border-b border-slate-200 bg-white px-4 sm:px-8">
+          <div className="flex items-center gap-3">
+            <button
+              type="button"
+              className="rounded-lg p-2 text-slate-600 hover:bg-slate-100 lg:hidden"
+              onClick={() => setMenuOpen(true)}
+              aria-label="Open navigation menu"
+            >
+              <Menu size={22} />
+            </button>
+            <div className="hidden text-sm text-slate-500 sm:block">School Management System</div>
+          </div>
+          <div className="flex items-center gap-3 sm:gap-5">
+            <div className="text-right">
+              <div className="max-w-40 truncate text-sm font-semibold text-slate-900 sm:max-w-none">
+                {userDisplayName(user)}
+              </div>
+              <div className="text-xs text-slate-500">{user.email}</div>
+            </div>
+            <span className="rounded-full bg-indigo-50 px-3 py-1 text-xs font-semibold text-indigo-700">
+              {user.role}
+            </span>
+            <button
+              type="button"
+              onClick={() => void logout()}
+              className="rounded-lg border border-slate-200 px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
+            >
+              Logout
+            </button>
+          </div>
+        </header>
+        <main className="w-full flex-1 p-4 sm:p-8">{children}</main>
+      </div>
+    </div>
+  );
+}
