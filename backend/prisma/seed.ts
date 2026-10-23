@@ -139,11 +139,44 @@ async function seed(): Promise<void> {
   ] as const;
 
   const students = [];
-  for (const [studentNo, firstName, lastName, sex] of studentDetails) {
+  for (const [index, [studentNo, firstName, lastName, sex]] of studentDetails.entries()) {
+    const studentAccount =
+      index < 2
+        ? await prisma.user.upsert({
+            where: { email: `student${index + 1}@school.test` },
+            update: {
+              passwordHash,
+              role: Role.STUDENT,
+              isActive: true,
+              firstName,
+              lastName,
+            },
+            create: {
+              email: `student${index + 1}@school.test`,
+              passwordHash,
+              role: Role.STUDENT,
+              isActive: true,
+              firstName,
+              lastName,
+            },
+          })
+        : null;
     const student = await prisma.student.upsert({
       where: { studentNo },
-      update: { firstName, lastName, sex, status: "ACTIVE" },
-      create: { studentNo, firstName, lastName, sex },
+      update: {
+        firstName,
+        lastName,
+        sex,
+        status: "ACTIVE",
+        ...(studentAccount ? { userId: studentAccount.id } : {}),
+      },
+      create: {
+        studentNo,
+        firstName,
+        lastName,
+        sex,
+        ...(studentAccount ? { userId: studentAccount.id } : {}),
+      },
     });
     students.push(student);
     await prisma.enrollment.upsert({

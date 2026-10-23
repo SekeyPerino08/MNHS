@@ -65,6 +65,9 @@ model Student {
   lastName         String
   sex              Sex
   birthDate        DateTime?
+  address          String?
+  guardianName     String?
+  guardianContact  String?
   status           StudentStatus   @default(ACTIVE)
   createdAt        DateTime        @default(now())
   updatedAt        DateTime        @updatedAt
