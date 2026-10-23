@@ -7,10 +7,11 @@ import { AlertTriangle, LoaderCircle } from "lucide-react";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
 import { ApiError } from "../../../lib/api";
+import { friendlyApiMessage, getFieldErrors } from "../../../components/shared";
 import type { Student, StudentInput } from "../../../types/student";
 import { useCreateStudent, useUpdateStudent } from "../hooks";
 import { studentFormSchema, type StudentFormValues } from "../student.schema";
-import { Modal } from "./Modal";
+import { Modal } from "../../../components/shared/Modal";
 
 interface DuplicateStudent {
   id: string;
@@ -101,18 +102,18 @@ export function StudentFormDialog({
           setError("studentNo", { message: error.message });
           return;
         }
-        const payload = error.details as { errors?: Record<string, string[]> } | undefined;
-        if (error.status === 400 && payload?.errors) {
-          for (const [field, messages] of Object.entries(payload.errors)) {
-            if (messages?.[0] && ["studentNo", "firstName", "middleName", "lastName", "sex", "birthDate", "address", "guardianName", "guardianContact"].includes(field)) {
-              setError(field as FormField, { message: messages[0] });
+        const fields = getFieldErrors(error);
+        if (error.status === 400 && Object.keys(fields).length) {
+          for (const [field, message] of Object.entries(fields)) {
+            if (["studentNo", "firstName", "middleName", "lastName", "sex", "birthDate", "address", "guardianName", "guardianContact"].includes(field)) {
+              setError(field as FormField, { message });
             }
           }
           return;
         }
-        toast.error(error.message);
+        toast.error(friendlyApiMessage(error, "Could not save the student"));
       } else {
-        toast.error("Could not save the student");
+        toast.error(friendlyApiMessage(error, "Could not save the student"));
       }
     }
   }

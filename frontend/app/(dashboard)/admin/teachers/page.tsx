@@ -1,5 +1,8 @@
-import { ProtectedComingSoon } from "../../../../components/ProtectedComingSoon";
+"use client";
+
+import { RoleGuard } from "../../../../components/RoleGuard";
+import { TeachersList } from "../../../../features/teachers/components/TeachersList";
 
 export default function AdminTeachersPage() {
-  return <ProtectedComingSoon role="ADMIN" section="Teachers" />;
+  return <RoleGuard allowedRoles={["ADMIN"]}><TeachersList /></RoleGuard>;
 }

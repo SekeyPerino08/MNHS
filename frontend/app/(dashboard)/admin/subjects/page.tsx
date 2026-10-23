@@ -1,5 +1,6 @@
-import { ProtectedComingSoon } from "../../../../components/ProtectedComingSoon";
-
+"use client";
+import { RoleGuard } from "../../../../components/RoleGuard";
+import { SubjectsList } from "../../../../features/subjects/components/SubjectsList";
 export default function AdminSubjectsPage() {
-  return <ProtectedComingSoon role="ADMIN" section="Subjects" />;
+  return <RoleGuard allowedRoles={["ADMIN"]}><SubjectsList /></RoleGuard>;
 }

@@ -5,7 +5,7 @@ import { AlertTriangle, LoaderCircle } from "lucide-react";
 import { toast } from "sonner";
 import type { StudentStatus } from "../../../types/student";
 import { useUpdateStudentStatus } from "../hooks";
-import { Modal } from "./Modal";
+import { Modal } from "../../../components/shared/Modal";
 
 const options: { value: StudentStatus; label: string }[] = [
   { value: "ACTIVE", label: "Active" },

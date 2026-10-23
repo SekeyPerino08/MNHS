@@ -1,5 +1,6 @@
-import { ProtectedComingSoon } from "../../../../components/ProtectedComingSoon";
-
+"use client";
+import { RoleGuard } from "../../../../components/RoleGuard";
+import { SectionsList } from "../../../../features/sections/components/SectionsList";
 export default function AdminSectionsPage() {
-  return <ProtectedComingSoon role="ADMIN" section="Sections" />;
+  return <RoleGuard allowedRoles={["ADMIN"]}><SectionsList /></RoleGuard>;
 }

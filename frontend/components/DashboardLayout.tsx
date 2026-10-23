@@ -8,15 +8,17 @@ import { Menu, X, GraduationCap } from "lucide-react";
 import { useAuth } from "../providers/AuthProvider";
 import { userDisplayName } from "../lib/auth";
 import type { Role } from "../types/auth";
+import { useCurrentSchoolYear } from "../features/school-years/hooks";
 
-const navigation: Record<Role, { label: string; href: string }[]> = {
+const navigation: Record<Role, { label: string; href: string; comingSoon?: boolean }[]> = {
   ADMIN: [
     { label: "Dashboard", href: "/admin" },
     { label: "Students", href: "/admin/students" },
     { label: "Teachers", href: "/admin/teachers" },
     { label: "Sections", href: "/admin/sections" },
     { label: "Subjects", href: "/admin/subjects" },
-    { label: "Enrollment", href: "/admin/enrollment" },
+    { label: "School Years", href: "/admin/school-years" },
+    { label: "Enrollment", href: "/admin/enrollment", comingSoon: true },
   ],
   TEACHER: [
     { label: "Dashboard", href: "/teacher" },
@@ -33,6 +35,7 @@ const navigation: Record<Role, { label: string; href: string }[]> = {
 
 export function DashboardLayout({ children }: Readonly<{ children: ReactNode }>) {
   const { user, logout } = useAuth();
+  const currentSchoolYear = useCurrentSchoolYear();
   const [menuOpen, setMenuOpen] = useState(false);
   const pathname = usePathname();
   if (!user) return null;
@@ -70,7 +73,7 @@ export function DashboardLayout({ children }: Readonly<{ children: ReactNode }>)
             }`}
           >
             <span>{link.label}</span>
-            {link.href !== `/${user.role.toLowerCase()}` && (
+            {link.comingSoon && (
               <span className="text-xs font-normal text-slate-400">Coming soon</span>
             )}
           </Link>
@@ -107,7 +110,12 @@ export function DashboardLayout({ children }: Readonly<{ children: ReactNode }>)
             >
               <Menu size={22} />
             </button>
-            <div className="hidden text-sm text-slate-500 sm:block">School Management System</div>
+            <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:gap-3">
+              <div className="hidden text-sm text-slate-500 sm:block">School Management System</div>
+              {user.role === "ADMIN" && <span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-medium text-slate-600" aria-label="Current school year">
+                {currentSchoolYear.data?.data.name ?? (currentSchoolYear.isLoading ? "Loading school year…" : "No current school year")}
+              </span>}
+            </div>
           </div>
           <div className="flex items-center gap-3 sm:gap-5">
             <div className="text-right">
