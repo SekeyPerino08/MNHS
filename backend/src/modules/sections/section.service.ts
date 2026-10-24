@@ -139,11 +139,10 @@ export async function getSectionById(id: string) {
         },
       },
       classOfferings: {
-        orderBy: [{ term: { termNumber: "asc" } }, { subject: { name: "asc" } }],
+        orderBy: { subject: { name: "asc" } },
         include: {
           subject: { select: { id: true, code: true, name: true, gradeLevel: true } },
           teacher: { select: { id: true, employeeNo: true, firstName: true, middleName: true, lastName: true } },
-          term: { select: { id: true, name: true, termNumber: true } },
         },
       },
     },

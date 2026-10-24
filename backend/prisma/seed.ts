@@ -88,7 +88,6 @@ async function seed(): Promise<void> {
     data: { isCurrent: false },
   });
 
-  const terms = [];
   const termDates = [
     ["2025-06-01", "2025-08-31"],
     ["2025-09-01", "2025-11-30"],
@@ -97,23 +96,21 @@ async function seed(): Promise<void> {
   ];
   for (let index = 0; index < termDates.length; index += 1) {
     const [startDate, endDate] = termDates[index];
-    terms.push(
-      await prisma.term.upsert({
-        where: { schoolYearId_termNumber: { schoolYearId: schoolYear.id, termNumber: index + 1 } },
-        update: {
-          name: ["1st Quarter", "2nd Quarter", "3rd Quarter", "4th Quarter"][index],
-          startDate: date(startDate),
-          endDate: date(endDate),
-        },
-        create: {
-          schoolYearId: schoolYear.id,
-          name: ["1st Quarter", "2nd Quarter", "3rd Quarter", "4th Quarter"][index],
-          termNumber: index + 1,
-          startDate: date(startDate),
-          endDate: date(endDate),
-        },
-      }),
-    );
+    await prisma.term.upsert({
+      where: { schoolYearId_termNumber: { schoolYearId: schoolYear.id, termNumber: index + 1 } },
+      update: {
+        name: ["1st Quarter", "2nd Quarter", "3rd Quarter", "4th Quarter"][index],
+        startDate: date(startDate),
+        endDate: date(endDate),
+      },
+      create: {
+        schoolYearId: schoolYear.id,
+        name: ["1st Quarter", "2nd Quarter", "3rd Quarter", "4th Quarter"][index],
+        termNumber: index + 1,
+        startDate: date(startDate),
+        endDate: date(endDate),
+      },
+    });
   }
 
   const subjectDetails = [
@@ -210,30 +207,24 @@ async function seed(): Promise<void> {
     });
   }
 
-  for (const term of terms) {
-    for (const [subjectIndex, subject] of subjects.entries()) {
-      const teacher = teachers[subjectIndex % teachers.length];
-      await prisma.classOffering.upsert({
-        where: {
-          subjectId_sectionId_termId: {
-            subjectId: subject.id,
-            sectionId: section.id,
-            termId: term.id,
-          },
-        },
-        update: {
-          teacherId: teacher.id,
-          schoolYearId: schoolYear.id,
-        },
-        create: {
+  for (const [subjectIndex, subject] of subjects.entries()) {
+    const teacher = teachers[subjectIndex % teachers.length];
+    await prisma.classOffering.upsert({
+      where: {
+        subjectId_sectionId_schoolYearId: {
           subjectId: subject.id,
           sectionId: section.id,
-          teacherId: teacher.id,
           schoolYearId: schoolYear.id,
-          termId: term.id,
         },
-      });
-    }
+      },
+      update: { teacherId: teacher.id },
+      create: {
+        subjectId: subject.id,
+        sectionId: section.id,
+        teacherId: teacher.id,
+        schoolYearId: schoolYear.id,
+      },
+    });
   }
 
   console.log(`Seeded ${students.length} students in section ${section.name}.`);

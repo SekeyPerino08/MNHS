@@ -122,11 +122,10 @@ export async function getTeacherById(id: string) {
       user: { select: { email: true } },
       offerings: {
         where: year ? { schoolYearId: year.id } : { id: "__none__" },
-        orderBy: [{ term: { termNumber: "asc" } }, { subject: { name: "asc" } }],
+        orderBy: { subject: { name: "asc" } },
         include: {
           subject: { select: { id: true, code: true, name: true, gradeLevel: true } },
           section: { select: { id: true, name: true, gradeLevel: true } },
-          term: { select: { id: true, name: true, termNumber: true } },
         },
       },
       advisedSections: {

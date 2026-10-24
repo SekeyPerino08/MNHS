@@ -9,10 +9,11 @@ import { ChangeStatusDialog } from "./ChangeStatusDialog";
 import { CreateAccountDialog } from "./CreateAccountDialog";
 import { StudentFormDialog } from "./StudentFormDialog";
 import { StudentStatusBadge } from "./StudentStatusBadge";
+import { QuickEnrollDialog } from "../../enrollment/components/EnrollmentDialogs";
 
 export function StudentDetailView({ id }: Readonly<{ id: string }>) {
   const query = useStudent(id);
-  const [dialog, setDialog] = useState<"edit" | "status" | "account" | null>(null);
+  const [dialog, setDialog] = useState<"edit" | "status" | "account" | "enrollment" | null>(null);
 
   if (query.isLoading) {
     return <div className="mx-auto max-w-5xl animate-pulse space-y-5"><div className="h-8 w-40 rounded bg-slate-200" /><div className="h-24 rounded-2xl bg-slate-200" /><div className="grid gap-5 md:grid-cols-2"><div className="h-56 rounded-2xl bg-slate-200" /><div className="h-56 rounded-2xl bg-slate-200" /></div><div className="h-48 rounded-2xl bg-slate-200" /></div>;
@@ -90,7 +91,7 @@ export function StudentDetailView({ id }: Readonly<{ id: string }>) {
               <Detail label="Grade" value={student.currentEnrollment.section ? `Grade ${student.currentEnrollment.section.gradeLevel}` : null} />
               <Detail label="Section" value={student.currentEnrollment.section?.name} />
             </>
-          ) : <p className="text-sm text-slate-500">Not currently enrolled.</p>}
+          ) : <div><p className="text-sm text-slate-500">Not currently enrolled.</p><button type="button" onClick={() => setDialog("enrollment")} className="mt-3 inline-flex items-center gap-2 rounded-lg bg-indigo-600 px-3 py-2 text-sm font-semibold text-white hover:bg-indigo-700"><Plus size={16} /> Enroll in a section</button></div>}
         </InfoCard>
       </div>
 
@@ -120,6 +121,7 @@ export function StudentDetailView({ id }: Readonly<{ id: string }>) {
       {dialog === "edit" && <StudentFormDialog student={student} onClose={() => { setDialog(null); void query.refetch(); }} />}
       {dialog === "status" && <ChangeStatusDialog studentId={student.id} currentStatus={student.status} onClose={() => { setDialog(null); void query.refetch(); }} />}
       {dialog === "account" && <CreateAccountDialog studentId={student.id} onClose={() => { setDialog(null); void query.refetch(); }} />}
+      {dialog === "enrollment" && <QuickEnrollDialog studentId={student.id} onClose={() => { setDialog(null); void query.refetch(); }} />}
     </div>
   );
 }

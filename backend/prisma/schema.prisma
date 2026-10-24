@@ -122,7 +122,6 @@ model Term {
   createdAt      DateTime       @default(now())
   updatedAt      DateTime       @updatedAt
   schoolYear     SchoolYear     @relation(fields: [schoolYearId], references: [id], onDelete: Restrict)
-  classOfferings ClassOffering[]
   grades         Grade[]
 
   @@unique([schoolYearId, termNumber])
@@ -184,23 +183,20 @@ model ClassOffering {
   sectionId    String
   teacherId    String
   schoolYearId String
-  termId       String
   createdAt    DateTime   @default(now())
   updatedAt    DateTime   @updatedAt
   subject      Subject    @relation(fields: [subjectId], references: [id], onDelete: Restrict)
   section      Section    @relation(fields: [sectionId], references: [id], onDelete: Restrict)
   teacher      Teacher    @relation(fields: [teacherId], references: [id], onDelete: Restrict)
   schoolYear   SchoolYear @relation(fields: [schoolYearId], references: [id], onDelete: Restrict)
-  term         Term       @relation(fields: [termId], references: [id], onDelete: Restrict)
   attendance   Attendance[]
   grades       Grade[]
 
-  @@unique([subjectId, sectionId, termId])
+  @@unique([subjectId, sectionId, schoolYearId])
   @@index([subjectId])
   @@index([sectionId])
   @@index([teacherId])
   @@index([schoolYearId])
-  @@index([termId])
 }
 
 model Attendance {

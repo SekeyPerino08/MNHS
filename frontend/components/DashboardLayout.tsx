@@ -18,18 +18,19 @@ const navigation: Record<Role, { label: string; href: string; comingSoon?: boole
     { label: "Sections", href: "/admin/sections" },
     { label: "Subjects", href: "/admin/subjects" },
     { label: "School Years", href: "/admin/school-years" },
-    { label: "Enrollment", href: "/admin/enrollment", comingSoon: true },
+    { label: "Enrollment", href: "/admin/enrollment" },
   ],
   TEACHER: [
     { label: "Dashboard", href: "/teacher" },
     { label: "My Classes", href: "/teacher/classes" },
-    { label: "Attendance", href: "/teacher/attendance" },
-    { label: "Grades", href: "/teacher/grades" },
+    { label: "Attendance", href: "/teacher/attendance", comingSoon: true },
+    { label: "Grades", href: "/teacher/grades", comingSoon: true },
   ],
   STUDENT: [
     { label: "Dashboard", href: "/student" },
-    { label: "My Grades", href: "/student/grades" },
-    { label: "My Attendance", href: "/student/attendance" },
+    { label: "My Subjects", href: "/student/subjects" },
+    { label: "My Grades", href: "/student/grades", comingSoon: true },
+    { label: "My Attendance", href: "/student/attendance", comingSoon: true },
   ],
 };
 

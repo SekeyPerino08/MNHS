@@ -25,7 +25,6 @@ export interface TeacherOffering {
   id: string;
   subject: { id: string; code: string; name: string; gradeLevel: number };
   section: { id: string; name: string; gradeLevel: number };
-  term: { id: string; name: string; termNumber: number };
 }
 
 export interface TeacherDetail extends Teacher {

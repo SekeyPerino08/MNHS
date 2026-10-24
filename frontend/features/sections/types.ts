@@ -11,8 +11,11 @@ export interface SectionDetail extends Section {
   enrollments: Array<{ id: string; status: string; student: { id: string; studentNo: string; firstName: string; middleName: string | null; lastName: string } }>;
   classOfferings: Array<{
     id: string;
+    subjectId: string;
+    sectionId: string;
+    teacherId: string;
+    schoolYearId: string;
     subject: { id: string; code: string; name: string; gradeLevel: number };
     teacher: { id: string; employeeNo: string; firstName: string; middleName: string | null; lastName: string };
-    term: { id: string; name: string; termNumber: number };
   }>;
 }

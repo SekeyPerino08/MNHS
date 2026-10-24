@@ -7,6 +7,9 @@ import teacherRouter from "../modules/teachers/teacher.routes.js";
 import subjectRouter from "../modules/subjects/subject.routes.js";
 import schoolYearRouter from "../modules/school-years/school-year.routes.js";
 import sectionRouter from "../modules/sections/section.routes.js";
+import enrollmentRouter from "../modules/enrollments/enrollment.routes.js";
+import classOfferingRouter from "../modules/class-offerings/class-offering.routes.js";
+import meRouter from "../modules/me/me.routes.js";
 
 const apiRouter = Router();
 
@@ -17,5 +20,8 @@ apiRouter.use("/teachers", teacherRouter);
 apiRouter.use("/subjects", subjectRouter);
 apiRouter.use("/school-years", schoolYearRouter);
 apiRouter.use("/sections", sectionRouter);
+apiRouter.use("/enrollments", enrollmentRouter);
+apiRouter.use("/class-offerings", classOfferingRouter);
+apiRouter.use("/me", meRouter);
 
 export default apiRouter;
