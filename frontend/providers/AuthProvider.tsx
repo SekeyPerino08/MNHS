@@ -10,6 +10,7 @@ interface AuthContextValue {
   loading: boolean;
   login: (input: LoginInput) => Promise<AuthUser>;
   logout: () => Promise<void>;
+  logoutAll: () => Promise<void>;
   refresh: () => Promise<AuthUser | null>;
 }
 
@@ -20,10 +21,17 @@ export function AuthProvider({ children }: Readonly<{ children: React.ReactNode 
   const [loading, setLoading] = useState(true);
   const router = useRouter();
 
+  const redirectIfPasswordChangeRequired = useCallback((nextUser: AuthUser) => {
+    if (nextUser.mustChangePassword && window.location.pathname !== "/change-password") {
+      router.replace("/change-password");
+    }
+  }, [router]);
+
   const refresh = useCallback(async (): Promise<AuthUser | null> => {
     try {
       const result = await apiFetch<{ user: AuthUser }>("/api/auth/me");
       setUser(result.user);
+      redirectIfPasswordChangeRequired(result.user);
       return result.user;
     } catch (error) {
       setUser(null);
@@ -34,13 +42,16 @@ export function AuthProvider({ children }: Readonly<{ children: React.ReactNode 
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [redirectIfPasswordChangeRequired]);
 
   useEffect(() => {
     let active = true;
     apiFetch<{ user: AuthUser }>("/api/auth/me")
       .then((result) => {
-        if (active) setUser(result.user);
+        if (active) {
+          setUser(result.user);
+          redirectIfPasswordChangeRequired(result.user);
+        }
       })
       .catch((error: unknown) => {
         if (active && !(error instanceof ApiError && error.status === 401)) {
@@ -54,7 +65,7 @@ export function AuthProvider({ children }: Readonly<{ children: React.ReactNode 
     return () => {
       active = false;
     };
-  }, []);
+  }, [redirectIfPasswordChangeRequired]);
 
   const login = useCallback(async (input: LoginInput): Promise<AuthUser> => {
     const result = await apiFetch<{ user: AuthUser }>("/api/auth/login", {
@@ -69,14 +80,22 @@ export function AuthProvider({ children }: Readonly<{ children: React.ReactNode 
     try {
       await apiFetch<void>("/api/auth/logout", { method: "POST" });
     } catch (error) {
-      console.error("Could not complete the logout request:", error);
+      if (!(error instanceof ApiError && error.status === 401)) {
+        console.error("Could not complete the logout request:", error);
+      }
     } finally {
       setUser(null);
       router.replace("/login");
     }
   }, [router]);
 
-  const value = useMemo(() => ({ user, loading, login, logout, refresh }), [user, loading, login, logout, refresh]);
+  const logoutAll = useCallback(async (): Promise<void> => {
+    await apiFetch<void>("/api/auth/logout-all", { method: "POST" });
+    setUser(null);
+    router.replace("/login");
+  }, [router]);
+
+  const value = useMemo(() => ({ user, loading, login, logout, logoutAll, refresh }), [user, loading, login, logout, logoutAll, refresh]);
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }

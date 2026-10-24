@@ -32,17 +32,18 @@ export default function LoginPage() {
   });
 
   useEffect(() => {
+    if (redirecting) return;
     if (!loading && user) {
-      window.location.replace(dashboardPath(user.role));
+      window.location.replace(user.mustChangePassword ? "/change-password" : dashboardPath(user.role));
     }
-  }, [loading, user]);
+  }, [loading, redirecting, user]);
 
   const onSubmit = handleSubmit(async (values) => {
     setServerError("");
     try {
       const loggedInUser = await login(values);
       setRedirecting(true);
-      window.location.assign(dashboardPath(loggedInUser.role));
+      window.location.assign(loggedInUser.mustChangePassword ? "/change-password" : dashboardPath(loggedInUser.role));
     } catch (error) {
       setServerError(error instanceof ApiError ? error.message : "Unable to sign in. Please try again.");
     }

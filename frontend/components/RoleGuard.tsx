@@ -20,12 +20,16 @@ export function RoleGuard({
       router.replace("/login");
       return;
     }
+    if (user.mustChangePassword) {
+      router.replace("/change-password");
+      return;
+    }
     if (!allowedRoles.includes(user.role)) {
       router.replace(dashboardPath(user.role));
     }
   }, [allowedRoles, loading, router, user]);
 
-  if (loading || !user || !allowedRoles.includes(user.role)) {
+  if (loading || !user || user.mustChangePassword || !allowedRoles.includes(user.role)) {
     return (
       <main className="min-h-screen animate-pulse bg-slate-50 p-6" aria-label="Loading dashboard">
         <div className="mx-auto max-w-7xl space-y-6">

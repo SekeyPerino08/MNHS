@@ -3,14 +3,15 @@
 import type { ReactNode } from "react";
 import { useState } from "react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
-import { Menu, X, GraduationCap } from "lucide-react";
+import { usePathname, useRouter } from "next/navigation";
+import { useEffect, useRef } from "react";
+import { Menu, X, GraduationCap, ChevronDown, UserRound } from "lucide-react";
 import { useAuth } from "../providers/AuthProvider";
 import { userDisplayName } from "../lib/auth";
 import type { Role } from "../types/auth";
 import { useCurrentSchoolYear } from "../features/school-years/hooks";
 
-const navigation: Record<Role, { label: string; href: string; comingSoon?: boolean }[]> = {
+const navigation: Record<Role, { label: string; href: string; comingSoon?: boolean; group?: string }[]> = {
   ADMIN: [
     { label: "Dashboard", href: "/admin" },
     { label: "Students", href: "/admin/students" },
@@ -19,12 +20,16 @@ const navigation: Record<Role, { label: string; href: string; comingSoon?: boole
     { label: "Subjects", href: "/admin/subjects" },
     { label: "School Years", href: "/admin/school-years" },
     { label: "Enrollment", href: "/admin/enrollment" },
+    { label: "Profile", href: "/profile" },
+    { label: "Users", href: "/admin/users", group: "Administration" },
+    { label: "Audit log", href: "/admin/audit-logs", group: "Administration" },
   ],
   TEACHER: [
     { label: "Dashboard", href: "/teacher" },
     { label: "My Classes", href: "/teacher/classes" },
     { label: "Attendance", href: "/teacher/classes" },
     { label: "Grades", href: "/teacher/grades" },
+    { label: "Profile", href: "/profile" },
   ],
   STUDENT: [
     { label: "Dashboard", href: "/student" },
@@ -32,17 +37,25 @@ const navigation: Record<Role, { label: string; href: string; comingSoon?: boole
     { label: "My Grades", href: "/student/grades" },
     { label: "My Attendance", href: "/student/attendance" },
     { label: "Report Card", href: "/student/report-card" },
+    { label: "Profile", href: "/profile" },
   ],
 };
 
 export function DashboardLayout({ children }: Readonly<{ children: ReactNode }>) {
   const { user, logout } = useAuth();
+  const router = useRouter();
   const currentSchoolYear = useCurrentSchoolYear();
   const [menuOpen, setMenuOpen] = useState(false);
   const pathname = usePathname();
-  if (!user) return null;
+  const menuRef = useRef<HTMLDetailsElement>(null);
+  useEffect(() => {
+    if (user?.mustChangePassword) router.replace("/change-password");
+  }, [router, user]);
+  if (!user || user.mustChangePassword) return null;
 
   const links = navigation[user.role];
+  const primaryLinks = links.filter((link) => !("group" in link));
+  const administrationLinks = links.filter((link) => "group" in link);
   const sidebar = (
     <aside className="flex h-full w-72 flex-col border-r border-slate-200 bg-white">
       <div className="flex h-20 items-center gap-3 border-b border-slate-100 px-6">
@@ -60,7 +73,7 @@ export function DashboardLayout({ children }: Readonly<{ children: ReactNode }>)
         </button>
       </div>
       <nav className="flex-1 space-y-1 p-4" aria-label="Main navigation">
-        {links.map((link) => {
+        {primaryLinks.map((link) => {
           const isActive = pathname === link.href || (link.href !== "/admin" && link.href !== "/teacher" && link.href !== "/student" && pathname.startsWith(`${link.href}/`));
           return (
           <Link
@@ -80,6 +93,17 @@ export function DashboardLayout({ children }: Readonly<{ children: ReactNode }>)
             )}
           </Link>
         );})}
+        {administrationLinks.length > 0 && <div className="mt-6 border-t border-slate-100 pt-4">
+          <p className="px-4 pb-2 text-xs font-semibold uppercase tracking-wide text-slate-400">Administration</p>
+          {administrationLinks.map((link) => {
+            const isActive = pathname === link.href || pathname.startsWith(`${link.href}/`);
+            return <Link key={link.href} href={link.href} onClick={() => setMenuOpen(false)}
+              aria-current={isActive ? "page" : undefined}
+              className={`mb-1 flex rounded-xl px-4 py-3 text-sm font-medium ${isActive ? "bg-indigo-50 text-indigo-700" : "text-slate-600 hover:bg-slate-50"}`}>
+              {link.label}
+            </Link>;
+          })}
+        </div>}
       </nav>
       <div className="border-t border-slate-100 p-4 text-xs text-slate-400">
         School Management System
@@ -119,23 +143,31 @@ export function DashboardLayout({ children }: Readonly<{ children: ReactNode }>)
               </span>}
             </div>
           </div>
-          <div className="flex items-center gap-3 sm:gap-5">
-            <div className="text-right">
-              <div className="max-w-40 truncate text-sm font-semibold text-slate-900 sm:max-w-none">
-                {userDisplayName(user)}
+          <div className="flex items-center">
+            <details ref={menuRef} className="relative">
+              <summary aria-label="Open user menu" className="flex cursor-pointer list-none items-center gap-2 rounded-xl border border-slate-200 px-3 py-2 text-left hover:bg-slate-50 focus-visible:outline-2 focus-visible:outline-indigo-600 [&::-webkit-details-marker]:hidden">
+                <span className="hidden text-right sm:block">
+                  <span className="block max-w-48 truncate text-sm font-semibold text-slate-900">{userDisplayName(user)}</span>
+                  <span className="block text-xs text-slate-500">{user.role}</span>
+                </span>
+                <UserRound size={18} aria-hidden="true" className="text-indigo-700" />
+                <ChevronDown size={15} aria-hidden="true" className="text-slate-500" />
+              </summary>
+              <div className="absolute right-0 z-30 mt-2 w-64 rounded-xl border border-slate-200 bg-white p-2 shadow-xl">
+                <div className="border-b border-slate-100 px-3 py-2">
+                  <p className="truncate text-sm font-semibold text-slate-900">{user.email}</p>
+                  <p className="mt-1 text-xs text-slate-500">{user.role}</p>
+                </div>
+                <Link href="/profile" onClick={() => { if (menuRef.current) menuRef.current.open = false; }}
+                  className="mt-1 block rounded-lg px-3 py-2 text-sm text-slate-700 hover:bg-slate-50 focus-visible:outline-2 focus-visible:outline-indigo-600">
+                  Profile
+                </Link>
+                <button type="button" onClick={() => void logout()}
+                  className="w-full rounded-lg px-3 py-2 text-left text-sm text-slate-700 hover:bg-slate-50 focus-visible:outline-2 focus-visible:outline-indigo-600">
+                  Log out
+                </button>
               </div>
-              <div className="text-xs text-slate-500">{user.email}</div>
-            </div>
-            <span className="rounded-full bg-indigo-50 px-3 py-1 text-xs font-semibold text-indigo-700">
-              {user.role}
-            </span>
-            <button
-              type="button"
-              onClick={() => void logout()}
-              className="rounded-lg border border-slate-200 px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
-            >
-              Logout
-            </button>
+            </details>
           </div>
         </header>
         <main className="w-full flex-1 p-4 sm:p-8">{children}</main>

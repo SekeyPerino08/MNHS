@@ -1,13 +1,8 @@
 import { z } from "zod";
+import { normalizeSpaces, titleCaseName } from "../../utils/name-normalization.js";
 
-const spaces = (value: string) => value.trim().replace(/\s+/g, " ");
-const titleCase = (value: string) =>
-  spaces(value)
-    .toLocaleLowerCase()
-    .replace(/(^|[\s'-])(\p{L})/gu, (_match, separator: string, letter: string) =>
-      `${separator}${letter.toLocaleUpperCase()}`,
-    );
-const name = z.string().transform(titleCase).pipe(z.string().min(1).max(60));
+const spaces = normalizeSpaces;
+const name = z.string().transform(titleCaseName).pipe(z.string().min(1).max(60));
 const optionalText = (max: number) =>
   z.string().transform(spaces).transform((value) => value || null).pipe(z.string().max(max).nullable()).optional();
 

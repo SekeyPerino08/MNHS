@@ -41,6 +41,18 @@ enum AttendanceStatus {
   EXCUSED
 }
 
+enum ImportType {
+  STUDENTS
+  TEACHERS
+}
+
+enum ImportStatus {
+  PREVIEWED
+  COMMITTED
+  DISCARDED
+  EXPIRED
+}
+
 model User {
   id                 String       @id @default(cuid())
   email              String       @unique
@@ -63,6 +75,7 @@ model User {
   attendanceRecords  Attendance[] @relation("AttendanceRecorder")
   recordedGrades     Grade[]      @relation("GradeRecorder")
   lockedTerms        Term[]       @relation("TermLocker")
+  importJobs         ImportJob[]
 }
 
 model Student {
@@ -269,4 +282,29 @@ model AuditLog {
 
   @@index([userId])
   @@index([entity, entityId])
+}
+
+model ImportJob {
+  id             String       @id @default(cuid())
+  type           ImportType
+  status         ImportStatus @default(PREVIEWED)
+  fileName       String
+  fileHash       String
+  options        Json?
+  totalRows      Int
+  validRows      Int
+  warningRows    Int
+  errorRows      Int
+  previewRows    Json
+  expiresAt      DateTime
+  committedAt   DateTime?
+  commitResult   Json?
+  createdById    String
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+  createdBy      User         @relation(fields: [createdById], references: [id], onDelete: Restrict)
+
+  @@index([createdById, createdAt])
+  @@index([status, expiresAt])
+  @@index([fileHash, status])
 }

@@ -10,6 +10,8 @@ export class ApiError extends Error {
   }
 }
 
+let redirectingForPasswordChange = false;
+
 interface ApiOptions extends Omit<RequestInit, "credentials"> {
   credentials?: RequestCredentials;
 }
@@ -51,6 +53,16 @@ export async function apiFetch<T>(path: string, options: ApiOptions = {}): Promi
       typeof payload === "object" && payload !== null && "code" in payload && typeof payload.code === "string"
         ? payload.code
         : undefined;
+    if (
+      response.status === 403 &&
+      code === "PASSWORD_CHANGE_REQUIRED" &&
+      typeof window !== "undefined" &&
+      window.location.pathname !== "/change-password" &&
+      !redirectingForPasswordChange
+    ) {
+      redirectingForPasswordChange = true;
+      window.location.replace("/change-password");
+    }
     throw new ApiError(response.status, message, code, payload);
   }
 

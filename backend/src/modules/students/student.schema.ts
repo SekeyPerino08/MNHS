@@ -1,22 +1,11 @@
 import { StudentStatus, Sex } from "@prisma/client";
 import { z } from "zod";
-
-function normalizeSpaces(value: string): string {
-  return value.trim().replace(/\s+/g, " ");
-}
-
-function titleCase(value: string): string {
-  return normalizeSpaces(value)
-    .toLocaleLowerCase()
-    .replace(/(^|[\s'-])(\p{L})/gu, (_match, separator: string, letter: string) => {
-      return `${separator}${letter.toLocaleUpperCase()}`;
-    });
-}
+import { normalizeSpaces, titleCaseName } from "../../utils/name-normalization.js";
 
 const nameSchema = (maximum = 60) =>
   z
     .string()
-    .transform(titleCase)
+    .transform(titleCaseName)
     .pipe(z.string().min(1).max(maximum));
 
 const optionalTextSchema = (maximum: number) =>
@@ -63,7 +52,7 @@ const studentFields = {
   birthDate: birthDateSchema,
   address: optionalTextSchema(300),
   guardianName: optionalTextSchema(120).transform((value) =>
-    value == null ? value : titleCase(value),
+    value == null ? value : titleCaseName(value),
   ),
   guardianContact: phoneSchema,
 };
@@ -88,7 +77,7 @@ export const updateStudentSchema = z
     birthDate: optionalBirthDateSchema,
     address: optionalTextSchema(300),
     guardianName: optionalTextSchema(120).transform((value) =>
-      value == null ? value : titleCase(value),
+      value == null ? value : titleCaseName(value),
     ),
     guardianContact: phoneSchema,
   })

@@ -110,8 +110,7 @@ function AdminDashboardContent() {
               </section>
 
               <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-900">
-                <div className="flex items-center justify-between gap-3"><h2 className="font-semibold text-slate-900 dark:text-white">Recent activity</h2><Link href="/admin" className="text-xs font-semibold text-indigo-700 hover:underline dark:text-indigo-300">Latest 10</Link></div>
-                {/* TODO: A full audit log viewer comes in a later phase. */}
+                <div className="flex items-center justify-between gap-3"><h2 className="font-semibold text-slate-900 dark:text-white">Recent activity</h2><Link href="/admin/audit-logs" className="text-xs font-semibold text-indigo-700 hover:underline dark:text-indigo-300">View all activity</Link></div>
                 {activity.length ? (
                   <ul className="mt-3 divide-y divide-slate-100 dark:divide-slate-700">
                     {activity.map((item) => (

@@ -28,10 +28,10 @@ export function useUrlState(defaults: Record<string, string>) {
     router.push(next.size ? `${pathname}?${next.toString()}` : pathname, { scroll: false });
   }, [pathname, router, searchParams]);
 
-  const updateSearch = useCallback((search: string, delay = 400) => {
+  const updateSearch = useCallback((search: string, delay = 400, parameter = "search") => {
     if (timer.current !== null) window.clearTimeout(timer.current);
     timer.current = window.setTimeout(() => {
-      update({ search: search.trim() || null }, true);
+      update({ [parameter]: search.trim() || null }, true);
       timer.current = null;
     }, delay);
   }, [update]);
