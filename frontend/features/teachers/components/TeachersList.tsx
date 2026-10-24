@@ -39,7 +39,10 @@ export function TeachersList() {
   return <div className="mx-auto max-w-[1500px]">
     <header className="mb-7 flex flex-wrap items-center justify-between gap-4">
       <div><p className="text-sm font-semibold uppercase tracking-wide text-indigo-600">Administration</p><h1 className="mt-1 text-3xl font-bold tracking-tight text-slate-900">Teachers</h1><p className="mt-1 text-sm text-slate-500">Manage teacher records and login access.</p></div>
-      <button type="button" onClick={() => setDialog("create")} className="inline-flex items-center gap-2 rounded-xl bg-indigo-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-indigo-700"><CirclePlus size={18} /> Add teacher</button>
+      <div className="flex flex-wrap gap-2">
+        <Link href="/admin/imports?type=teachers" className="inline-flex items-center gap-2 rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50">Import CSV</Link>
+        <button type="button" onClick={() => setDialog("create")} className="inline-flex items-center gap-2 rounded-xl bg-indigo-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-indigo-700"><CirclePlus size={18} /> Add teacher</button>
+      </div>
     </header>
     <section className="mb-5 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
       <div className="grid gap-3 sm:grid-cols-[minmax(250px,1fr)_200px_auto]">

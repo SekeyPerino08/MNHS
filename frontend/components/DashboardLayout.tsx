@@ -23,6 +23,7 @@ const navigation: Record<Role, { label: string; href: string; comingSoon?: boole
     { label: "Profile", href: "/profile" },
     { label: "Users", href: "/admin/users", group: "Administration" },
     { label: "Audit log", href: "/admin/audit-logs", group: "Administration" },
+    { label: "Import", href: "/admin/imports", group: "Administration" },
   ],
   TEACHER: [
     { label: "Dashboard", href: "/teacher" },
