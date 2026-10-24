@@ -10,10 +10,12 @@ import sectionRouter from "../modules/sections/section.routes.js";
 import enrollmentRouter from "../modules/enrollments/enrollment.routes.js";
 import classOfferingRouter from "../modules/class-offerings/class-offering.routes.js";
 import meRouter from "../modules/me/me.routes.js";
+import gradesRouter from "../modules/grades/grades.routes.js";
 
 const apiRouter = Router();
 
 apiRouter.use(healthRouter);
+apiRouter.use(gradesRouter);
 apiRouter.use("/auth", authRouter);
 apiRouter.use("/students", studentRouter);
 apiRouter.use("/teachers", teacherRouter);

@@ -10,7 +10,7 @@
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev",
     "prisma:studio": "prisma studio",
-    "test:unit": "tsx scripts/attendance.unit.ts"
+    "test:unit": "tsx scripts/attendance.unit.ts && tsx scripts/grading.unit.ts"
   },
   "prisma": {
     "seed": "tsx prisma/seed.ts"
