@@ -23,14 +23,14 @@ const navigation: Record<Role, { label: string; href: string; comingSoon?: boole
   TEACHER: [
     { label: "Dashboard", href: "/teacher" },
     { label: "My Classes", href: "/teacher/classes" },
-    { label: "Attendance", href: "/teacher/attendance", comingSoon: true },
+    { label: "Attendance", href: "/teacher/classes" },
     { label: "Grades", href: "/teacher/grades", comingSoon: true },
   ],
   STUDENT: [
     { label: "Dashboard", href: "/student" },
     { label: "My Subjects", href: "/student/subjects" },
     { label: "My Grades", href: "/student/grades", comingSoon: true },
-    { label: "My Attendance", href: "/student/attendance", comingSoon: true },
+    { label: "My Attendance", href: "/student/attendance" },
   ],
 };
 
