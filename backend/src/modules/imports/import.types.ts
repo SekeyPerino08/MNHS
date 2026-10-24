@@ -1,3 +1,5 @@
+import type { ImportType } from "@prisma/client";
+
 export type ImportField =
   | "studentNo"
   | "employeeNo"
@@ -19,49 +21,57 @@ export interface RowIssue {
   message: string;
 }
 
+export interface ImportChange {
+  field: string;
+  from: string | null;
+  to: string | null;
+}
+
 export interface ImportOptions {
-  dateFormat: "YYYY-MM-DD" | "MM/DD/YYYY" | "DD/MM/YYYY";
+  dateFormat: "ISO" | "MDY" | "DMY";
 }
 
-export interface StudentImportValues {
-  studentNo: string;
-  firstName: string;
-  middleName: string | null;
-  lastName: string;
-  sex: "MALE" | "FEMALE";
-  birthDate: string;
-  address: string | null;
-  guardianName: string | null;
-  guardianContact: string | null;
-  gradeLevel?: number;
-  section?: string;
-}
-
-export interface TeacherImportValues {
-  employeeNo: string;
-  firstName: string;
-  middleName: string | null;
-  lastName: string;
-  department: string | null;
-  contactNo: string | null;
-}
-
-export interface CommitStudentData extends StudentImportValues {
-  sectionId?: string;
-  schoolYearId?: string;
+export interface EnrollmentPreview {
+  sectionId: string;
+  label: string;
 }
 
 export interface ImportPreviewRow {
   rowNumber: number;
-  raw: string[];
-  values: Record<string, string | number | null>;
+  status: "ERROR" | "WARNING" | "VALID";
   errors: RowIssue[];
   warnings: RowIssue[];
-  commitData?: CommitStudentData | TeacherImportValues;
+  original: string[];
+  normalized: Record<string, string | number | null> | null;
+  changes: ImportChange[];
+  enrollment?: EnrollmentPreview;
+}
+
+export interface ParsedRow {
+  rowNumber: number;
+  original: string[];
+  errors: RowIssue[];
 }
 
 export interface ParsedCsv {
   delimiter: "," | ";";
   headers: string[];
-  rows: Array<{ cells: string[]; rowNumber: number }>;
+  rows: ParsedRow[];
+}
+
+export interface HeaderMapping {
+  recognized: Array<{ column: string; field: ImportField }>;
+  ignored: string[];
+  fields: Partial<Record<ImportField, number>>;
+  hasGradeLevel: boolean;
+  hasSection: boolean;
+}
+
+export interface TransformedRow extends ImportPreviewRow {
+  normalized: Record<string, string | number | null> | null;
+  pending: Record<string, string | number | null>;
+}
+
+export interface ImportRequestOptions extends ImportOptions {
+  type: ImportType;
 }

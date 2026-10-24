@@ -27,7 +27,7 @@ const navigation: Record<Role, { label: string; href: string; comingSoon?: boole
   TEACHER: [
     { label: "Dashboard", href: "/teacher" },
     { label: "My Classes", href: "/teacher/classes" },
-    { label: "Attendance", href: "/teacher/classes" },
+    { label: "Attendance", href: "/teacher/attendance" },
     { label: "Grades", href: "/teacher/grades" },
     { label: "Profile", href: "/profile" },
   ],

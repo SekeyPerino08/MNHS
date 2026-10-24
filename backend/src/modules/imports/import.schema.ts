@@ -3,10 +3,12 @@ import { z } from "zod";
 export const importTypeSchema = z.enum(["STUDENTS", "TEACHERS"]);
 
 export const previewOptionsSchema = z.object({
-  dateFormat: z.enum(["YYYY-MM-DD", "MM/DD/YYYY", "DD/MM/YYYY"]).default("YYYY-MM-DD"),
+  type: importTypeSchema,
+  dateFormat: z.enum(["ISO", "MDY", "DMY"]).default("ISO"),
 });
 
 export const importRowsQuerySchema = z.object({
+  status: z.enum(["ALL", "VALID", "WARNING", "ERROR"]).default("ALL"),
   page: z.coerce.number().int().positive().default(1),
   pageSize: z.coerce.number().int().positive().max(100).default(25),
 });
@@ -19,7 +21,7 @@ export const importHistoryQuerySchema = z.object({
 });
 
 export const commitImportSchema = z.object({
-  rowNumbers: z.array(z.number().int().positive()).max(1000).optional(),
-});
+  includeWarnings: z.boolean().default(false),
+}).default({});
 
 export type PreviewOptionsInput = z.infer<typeof previewOptionsSchema>;

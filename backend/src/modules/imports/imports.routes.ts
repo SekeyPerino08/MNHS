@@ -12,7 +12,8 @@ import {
   importRowsController,
   previewController,
   rejectedCsvController,
-  templateController,
+  studentTemplateController,
+  teacherTemplateController,
 } from "./import.controller.js";
 
 const router = Router();
@@ -24,10 +25,11 @@ const upload = multer({
 const uploadCsv: RequestHandler = (request, response, next) => {
   upload.single("file")(request, response, (error: unknown) => {
     if (error instanceof multer.MulterError) {
+      const tooLarge = error.code === "LIMIT_FILE_SIZE";
       next(new AppError(
-        error.code === "LIMIT_FILE_SIZE" ? "CSV files must be 2 MB or smaller" : "Unable to accept the uploaded CSV file",
-        error.code === "LIMIT_FILE_SIZE" ? 413 : 400,
-        error.code === "LIMIT_FILE_SIZE" ? "FILE_TOO_LARGE" : "UPLOAD_ERROR",
+        tooLarge ? "CSV files must be 2 MB or smaller" : "Unable to accept the uploaded CSV file",
+        tooLarge ? 413 : 400,
+        tooLarge ? "FILE_TOO_LARGE" : "UPLOAD_ERROR",
       ));
       return;
     }
@@ -36,13 +38,14 @@ const uploadCsv: RequestHandler = (request, response, next) => {
 };
 
 router.use(authenticate, authorize(Role.ADMIN));
-router.get("/templates/:type", templateController);
-router.post("/preview/:type", uploadCsv, previewController);
-router.get("/jobs", importHistoryController);
-router.get("/jobs/:id", importJobController);
-router.get("/jobs/:id/rows", importRowsController);
-router.get("/jobs/:id/rejected.csv", rejectedCsvController);
-router.post("/jobs/:id/commit", commitImportController);
-router.post("/jobs/:id/discard", discardImportController);
+router.get("/templates/students.csv", studentTemplateController);
+router.get("/templates/teachers.csv", teacherTemplateController);
+router.post("/preview", uploadCsv, previewController);
+router.get("/", importHistoryController);
+router.get("/:id/rows", importRowsController);
+router.get("/:id/rejected.csv", rejectedCsvController);
+router.post("/:id/commit", commitImportController);
+router.post("/:id/discard", discardImportController);
+router.get("/:id", importJobController);
 
 export default router;

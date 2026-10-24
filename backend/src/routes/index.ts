@@ -15,7 +15,7 @@ import reportCardsRouter from "../modules/report-cards/report-cards.routes.js";
 import dashboardRouter from "../modules/dashboard/dashboard.routes.js";
 import usersRouter from "../modules/users/user.routes.js";
 import auditLogsRouter from "../modules/audit-logs/audit-log.routes.js";
-import importsRouter from "../modules/imports/import.routes.js";
+import importsRouter from "../modules/imports/imports.routes.js";
 
 const apiRouter = Router();
 

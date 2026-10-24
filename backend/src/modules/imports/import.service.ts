@@ -12,16 +12,18 @@ import { prisma } from "../../lib/prisma.js";
 import { logAudit } from "../../services/audit.service.js";
 import { AppError } from "../../utils/AppError.js";
 import { buildPaginationMeta, parsePagination } from "../../utils/pagination.js";
-import { csvTemplate, rejectedRowsCsv } from "./report.js";
-import { mapHeaders } from "./map-headers.js";
-import { parseCsv } from "./parse.js";
-import { transformRows } from "./transform.js";
+import { csvTemplate, rejectedRowsCsv } from "./etl/report.js";
+import { mapHeaders } from "./etl/mapHeaders.js";
+import { parseCsv } from "./etl/parse.js";
+import { transformRows } from "./etl/transform.js";
 import {
+  addIssue,
   addPossibleDuplicateWarnings,
-  printableRow,
+  finalizeRows,
   summarizeRows,
-  validateUniqueNumbers,
-} from "./validate.js";
+  validateExistingNumbers,
+  validateInFileDuplicates,
+} from "./etl/validate.js";
 import {
   commitImportSchema,
   importHistoryQuerySchema,
@@ -29,65 +31,34 @@ import {
   importTypeSchema,
   previewOptionsSchema,
 } from "./import.schema.js";
-import type { CommitStudentData, ImportOptions, ImportPreviewRow } from "./import.types.js";
-import type { ImportType as ImportTypeValue } from "@prisma/client";
+import type { ImportOptions, ImportPreviewRow, TransformedRow } from "./import.types.js";
 
 const MAX_UPLOAD_BYTES = 2 * 1024 * 1024;
 const PREVIEW_LIFETIME_MS = 24 * 60 * 60 * 1000;
 
-function parseInput<T extends z.ZodTypeAny>(schema: T, input: unknown, label = "Validation failed"): z.infer<T> {
+function parseInput<T extends z.ZodTypeAny>(schema: T, input: unknown): z.infer<T> {
   const parsed = schema.safeParse(input);
   if (!parsed.success) {
-    throw new AppError(label, 400, "VALIDATION_ERROR", {
+    throw new AppError("Validation failed", 400, "VALIDATION_ERROR", {
       errors: parsed.error.flatten().fieldErrors,
     });
   }
   return parsed.data;
 }
 
+function actorId(request: Request): string {
+  if (!request.user) throw new AppError("Not authenticated", 401, "NOT_AUTHENTICATED");
+  return request.user.id;
+}
+
 function sanitizeFileName(name: string): string {
-  const baseName = name.split(/[\\/]/).pop() ?? "";
-  const clean = baseName
+  const basename = name.split(/[\\/]/).pop() ?? "";
+  const clean = basename
     .replace(/[\u0000-\u001f\u007f]/g, "")
     .replace(/[<>:"|?*]/g, "_")
     .trim()
     .slice(0, 120);
   return clean || "upload.csv";
-}
-
-function storedRows(job: Pick<ImportJob, "previewRows">): ImportPreviewRow[] {
-  if (!Array.isArray(job.previewRows)) {
-    throw new AppError("Import preview data is unavailable", 500, "IMPORT_DATA_UNAVAILABLE");
-  }
-  return job.previewRows as unknown as ImportPreviewRow[];
-}
-
-function auditDetails(value: Record<string, string | number | boolean>): Prisma.InputJsonObject {
-  return value as Prisma.InputJsonObject;
-}
-
-function requestUserId(request: Request): string {
-  if (!request.user) throw new AppError("Not authenticated", 401, "NOT_AUTHENTICATED");
-  return request.user.id;
-}
-
-async function expireJob(job: ImportJob): Promise<ImportJob> {
-  if (job.status !== ImportStatus.PREVIEWED || job.expiresAt.getTime() > Date.now()) return job;
-  return prisma.importJob.update({
-    where: { id: job.id },
-    data: { status: ImportStatus.EXPIRED, previewRows: [] },
-  });
-}
-
-async function getJob(id: string): Promise<ImportJob> {
-  const job = await prisma.importJob.findUnique({ where: { id } });
-  if (!job) throw new AppError("Import job not found", 404, "IMPORT_NOT_FOUND");
-  return expireJob(job);
-}
-
-function summary(job: ImportJob) {
-  const { previewRows: _previewRows, fileHash: _fileHash, ...metadata } = job;
-  return metadata;
 }
 
 function validateUpload(file: Express.Multer.File): void {
@@ -108,390 +79,500 @@ function validateUpload(file: Express.Multer.File): void {
   }
 }
 
-async function checkNumbers(type: ImportTypeValue, rows: ImportPreviewRow[]): Promise<void> {
+function json(value: object): Prisma.InputJsonObject {
+  return value as Prisma.InputJsonObject;
+}
+
+function summary(job: ImportJob) {
+  return {
+    id: job.id,
+    type: job.type,
+    status: job.status,
+    fileName: job.fileName,
+    options: job.options,
+    totals: job.totals,
+    expiresAt: job.expiresAt,
+    createdById: job.createdById,
+    committedAt: job.committedAt,
+    result: job.result,
+    createdAt: job.createdAt,
+  };
+}
+
+async function loadJob(id: string): Promise<ImportJob> {
+  const job = await prisma.importJob.findUnique({ where: { id } });
+  if (!job) throw new AppError("Import job not found", 404, "IMPORT_NOT_FOUND");
+  return job;
+}
+
+async function expireIfNeeded(job: ImportJob): Promise<ImportJob> {
+  if (job.status !== ImportStatus.PREVIEWED || job.expiresAt.getTime() > Date.now()) return job;
+  return prisma.importJob.update({
+    where: { id: job.id },
+    data: { status: ImportStatus.EXPIRED, rows: Prisma.DbNull },
+  });
+}
+
+function storedRows(job: ImportJob): ImportPreviewRow[] {
+  if (!Array.isArray(job.rows)) {
+    throw new AppError("This import preview has expired or its rows were purged", 410, "IMPORT_EXPIRED");
+  }
+  return job.rows as unknown as ImportPreviewRow[];
+}
+
+function databasePersonKey(
+  type: ImportType,
+  person: { firstName: string; lastName: string; birthDate?: Date | null },
+): string {
+  const base = `${person.firstName.toLocaleLowerCase()}|${person.lastName.toLocaleLowerCase()}`;
+  return type === ImportType.STUDENTS
+    ? `${base}|${person.birthDate?.toISOString().slice(0, 10) ?? ""}`
+    : base;
+}
+
+async function validateDatabaseDuplicates(
+  type: ImportType,
+  rows: TransformedRow[],
+): Promise<void> {
+  const numberField = type === ImportType.STUDENTS ? "studentNo" : "employeeNo";
   const numbers = [...new Set(rows.flatMap((row) => {
-    const number = type === ImportType.STUDENTS ? row.values.studentNo : row.values.employeeNo;
-    return typeof number === "string" && number ? [number] : [];
+    const value = row.pending[numberField];
+    return typeof value === "string" && value ? [value] : [];
   }))];
 
   if (type === ImportType.STUDENTS) {
-    const found = numbers.length
-      ? await prisma.student.findMany({
-          where: { studentNo: { in: numbers } },
-          select: { studentNo: true, firstName: true, lastName: true, birthDate: true },
-        })
-      : [];
-    validateUniqueNumbers(rows, type, new Set(found.map(({ studentNo }) => studentNo.toLocaleLowerCase())));
-
-    const studentRows = rows.filter((row) =>
-      Boolean(row.commitData && "studentNo" in row.commitData && "birthDate" in row.commitData),
+    const [existingNumbers, people] = await Promise.all([
+      numbers.length
+        ? prisma.student.findMany({
+            where: { studentNo: { in: numbers } },
+            select: { studentNo: true },
+          })
+        : [],
+      prisma.student.findMany({
+        where: {
+          OR: rows.flatMap((row) => {
+            const firstName = row.pending.firstName;
+            const lastName = row.pending.lastName;
+            const birthDate = row.pending.birthDate;
+            if (
+              row.status === "ERROR" ||
+              typeof firstName !== "string" ||
+              typeof lastName !== "string" ||
+              typeof birthDate !== "string"
+            ) return [];
+            const date = new Date(`${birthDate}T00:00:00.000Z`);
+            return [{
+              firstName: { equals: firstName, mode: "insensitive" as const },
+              lastName: { equals: lastName, mode: "insensitive" as const },
+              birthDate: { gte: date, lt: new Date(date.getTime() + 86_400_000) },
+            }];
+          }),
+        },
+        select: { studentNo: true, firstName: true, lastName: true, birthDate: true },
+      }),
+    ]);
+    validateExistingNumbers(
+      rows,
+      type,
+      new Set(existingNumbers.map(({ studentNo }) => studentNo.toLocaleLowerCase())),
     );
-    const matches = studentRows.map((row) => {
-      const values = row.commitData as CommitStudentData;
-      const date = new Date(`${values.birthDate}T00:00:00.000Z`);
-      return {
-        firstName: values.firstName,
-        lastName: values.lastName,
-        birthDate: { gte: date, lt: new Date(date.getTime() + 86_400_000) },
-      };
-    });
-    const existingMatches = matches.length
-      ? await prisma.student.findMany({
-          where: { OR: matches },
-          select: { studentNo: true, firstName: true, lastName: true, birthDate: true },
-        })
-      : [];
-    const duplicateMap = new Map<string, string[]>();
-    for (const match of existingMatches) {
-      if (!match.birthDate) continue;
-      const key = `${match.firstName.toLocaleLowerCase()}|${match.lastName.toLocaleLowerCase()}|${match.birthDate.toISOString().slice(0, 10)}`;
-      duplicateMap.set(key, [...(duplicateMap.get(key) ?? []), match.studentNo]);
+    const byPerson = new Map<string, string[]>();
+    for (const person of people) {
+      const key = databasePersonKey(ImportType.STUDENTS, person);
+      byPerson.set(key, [...(byPerson.get(key) ?? []), person.studentNo]);
     }
-    addPossibleDuplicateWarnings(rows, duplicateMap);
+    addPossibleDuplicateWarnings(rows, type, byPerson);
     return;
   }
 
-  const found = numbers.length
-    ? await prisma.teacher.findMany({
-        where: { employeeNo: { in: numbers } },
-        select: { employeeNo: true },
-      })
-    : [];
-  validateUniqueNumbers(rows, type, new Set(found.map(({ employeeNo }) => employeeNo.toLocaleLowerCase())));
+  const [existingNumbers, people] = await Promise.all([
+    numbers.length
+      ? prisma.teacher.findMany({
+          where: { employeeNo: { in: numbers } },
+          select: { employeeNo: true },
+        })
+      : [],
+    prisma.teacher.findMany({
+      where: {
+        OR: rows.flatMap((row) => {
+          const firstName = row.pending.firstName;
+          const lastName = row.pending.lastName;
+          if (
+            row.status === "ERROR" ||
+            typeof firstName !== "string" ||
+            typeof lastName !== "string"
+          ) return [];
+          return [
+            {
+              firstName: { equals: firstName, mode: "insensitive" as const },
+              lastName: { equals: lastName, mode: "insensitive" as const },
+            },
+          ];
+        }),
+      },
+      select: { employeeNo: true, firstName: true, lastName: true },
+    }),
+  ]);
+  validateExistingNumbers(
+    rows,
+    type,
+    new Set(existingNumbers.map(({ employeeNo }) => employeeNo.toLocaleLowerCase())),
+  );
+  const byPerson = new Map<string, string[]>();
+  for (const person of people) {
+    const key = databasePersonKey(ImportType.TEACHERS, person);
+    byPerson.set(key, [...(byPerson.get(key) ?? []), person.employeeNo]);
+  }
+  addPossibleDuplicateWarnings(rows, type, byPerson);
 }
 
-async function resolveSections(rows: ImportPreviewRow[], hasEnrollmentColumns: boolean): Promise<void> {
-  if (!hasEnrollmentColumns) return;
-  const enrollmentRows = rows.filter((row): row is ImportPreviewRow & { commitData: CommitStudentData } =>
-    Boolean(row.errors.length === 0 && row.commitData && "studentNo" in row.commitData),
-  );
-  if (!enrollmentRows.length) return;
+async function resolveStudentEnrollments(
+  rows: TransformedRow[],
+  mapping: ReturnType<typeof mapHeaders>,
+): Promise<void> {
+  if (!mapping.hasGradeLevel || !mapping.hasSection) return;
   const currentYear = await prisma.schoolYear.findFirst({
     where: { isCurrent: true },
-    select: { id: true },
+    select: { id: true, name: true },
   });
   if (!currentYear) {
-    for (const row of enrollmentRows) {
-      row.errors.push({ field: "section", message: "No current school year is configured" });
-    }
-    return;
+    throw new AppError("Set a current school year before previewing student enrollments", 400, "NO_CURRENT_SCHOOL_YEAR");
   }
-
-  const requested = enrollmentRows.flatMap(({ commitData: row }) => {
-    if (!row.gradeLevel || !row.section) return [];
-    return [{ gradeLevel: row.gradeLevel, name: row.section }];
+  const requested = rows.flatMap((row) => {
+    const gradeLevel = row.pending.gradeLevel;
+    const sectionName = row.pending.section;
+    if (typeof gradeLevel !== "number" || typeof sectionName !== "string" || !sectionName) return [];
+    return [{ gradeLevel, sectionName }];
   });
-  const unique = new Map(requested.map((value) => [`${value.gradeLevel}|${value.name.toLocaleLowerCase()}`, value]));
-  const sections = unique.size
+  const sections = requested.length
     ? await prisma.section.findMany({
         where: {
           schoolYearId: currentYear.id,
-          OR: [...unique.values()].map(({ gradeLevel, name }) => ({
+          OR: requested.map(({ gradeLevel, sectionName }) => ({
             gradeLevel,
-            name: { equals: name, mode: "insensitive" as const },
+            name: { equals: sectionName, mode: "insensitive" as const },
           })),
         },
-        select: { id: true, gradeLevel: true, name: true },
+        select: { id: true, name: true, gradeLevel: true },
       })
     : [];
-  const sectionsByName = new Map(
+  const sectionMap = new Map(
     sections.map((section) => [`${section.gradeLevel}|${section.name.toLocaleLowerCase()}`, section]),
   );
 
-  for (const row of enrollmentRows) {
-    const values = row.commitData;
-    if (!values.gradeLevel || !values.section) {
-      row.errors.push({ field: "section", message: "Both Grade Level and Section are required for enrollment" });
-      continue;
-    }
-    const section = sectionsByName.get(`${values.gradeLevel}|${values.section.toLocaleLowerCase()}`);
-    if (!section) {
-      row.errors.push({
+  for (const row of rows) {
+    if (row.status === "ERROR") continue;
+    const grade = row.pending.gradeLevel;
+    const sectionName = row.pending.section;
+    if ((grade === null || grade === undefined) && !sectionName) continue;
+    if (typeof grade !== "number" || typeof sectionName !== "string" || !sectionName) {
+      addIssue(row, {
         field: "section",
-        message: `Grade ${values.gradeLevel} ${values.section} does not exist in the current school year`,
+        message: "Grade Level and Section must both be provided for enrollment",
       });
       continue;
     }
-    values.sectionId = section.id;
-    values.schoolYearId = currentYear.id;
+    const section = sectionMap.get(`${grade}|${sectionName.toLocaleLowerCase()}`);
+    if (!section) {
+      addIssue(row, {
+        field: "section",
+        message: `Section '${sectionName}' not found for Grade ${grade} in ${currentYear.name}`,
+      });
+      continue;
+    }
+    row.enrollment = { sectionId: section.id, label: `Grade ${grade} - ${section.name}` };
+    row.normalized = { ...row.pending };
   }
 }
 
-export function getImportTemplate(rawType: unknown): { type: ImportTypeValue; content: string } {
+export function getImportTemplate(rawType: unknown): { type: ImportType; content: string } {
   const type = parseInput(importTypeSchema, rawType);
   return { type, content: csvTemplate(type) };
 }
 
 export async function previewImport(
   file: Express.Multer.File,
-  rawType: unknown,
   rawOptions: unknown,
   request: Request,
 ) {
-  const actorId = requestUserId(request);
+  const creatorId = actorId(request);
   validateUpload(file);
-  const type = parseInput(importTypeSchema, rawType);
-  const options: ImportOptions = parseInput(previewOptionsSchema, rawOptions);
+  const options = parseInput(previewOptionsSchema, rawOptions) as { type: ImportType; dateFormat: ImportOptions["dateFormat"] };
   const parsed = parseCsv(file.buffer);
-  const headerMap = mapHeaders(parsed.headers, type);
-  const rows = transformRows(parsed, headerMap, type, options);
-  await checkNumbers(type, rows);
-  await resolveSections(rows, headerMap.hasEnrollmentColumns);
-
-  const counts = summarizeRows(rows);
-  const fileHash = createHash("sha256").update(file.buffer).digest("hex");
-  const job = await prisma.$transaction(async (transaction) => {
-    const created = await transaction.importJob.create({
+  const mapping = mapHeaders(parsed.headers, options.type);
+  const transformed = transformRows(parsed, mapping, options.type, options);
+  validateInFileDuplicates(transformed, options.type);
+  await validateDatabaseDuplicates(options.type, transformed);
+  if (options.type === ImportType.STUDENTS && (mapping.hasGradeLevel || mapping.hasSection)) {
+    if (!mapping.hasGradeLevel || !mapping.hasSection) {
+      for (const row of transformed) {
+        if (row.status !== "ERROR") {
+          addIssue(row, {
+            field: mapping.hasGradeLevel ? "section" : "gradeLevel",
+            message: "Grade Level and Section columns must both be provided for enrollment",
+          });
+        }
+      }
+    } else {
+      await resolveStudentEnrollments(transformed, mapping);
+    }
+  }
+  const rows = finalizeRows(transformed);
+  const totals = summarizeRows(rows);
+  const hash = createHash("sha256").update(file.buffer).digest("hex");
+  const storedOptions = {
+    dateFormat: options.dateFormat,
+    recognizedColumns: mapping.recognized,
+    ignoredColumns: mapping.ignored,
+    originalHeaders: parsed.headers,
+    delimiter: parsed.delimiter,
+  };
+  const created = await prisma.$transaction(async (transaction) => {
+    const job = await transaction.importJob.create({
       data: {
-        type,
+        type: options.type,
         status: ImportStatus.PREVIEWED,
         fileName: sanitizeFileName(file.originalname),
-        fileHash,
-        options: {
-          ...options,
-          headers: parsed.headers,
-          delimiter: parsed.delimiter,
-        } as Prisma.InputJsonObject,
-        ...counts,
-        previewRows: rows as unknown as Prisma.InputJsonArray,
+        fileHash: hash,
+        options: json(storedOptions),
+        totals: json(totals),
+        rows: rows as unknown as Prisma.InputJsonArray,
         expiresAt: new Date(Date.now() + PREVIEW_LIFETIME_MS),
-        createdById: actorId,
+        createdById: creatorId,
       },
     });
     await logAudit({
-      userId: actorId,
+      userId: creatorId,
       action: "IMPORT_PREVIEW",
       entity: "ImportJob",
-      entityId: created.id,
-      details: auditDetails({ type, ...counts }),
+      entityId: job.id,
+      details: json({ type: options.type, ...totals }),
       ipAddress: request.ip,
     }, transaction);
-    return created;
+    return job;
   });
-  return {
-    ...summary(job),
-    rows: rows.slice(0, 25).map(printableRow),
-    meta: buildPaginationMeta(1, 25, rows.length),
-  };
+  return { ...summary(created), rows };
+}
+
+export async function getImportTemplateResponse(rawType: unknown) {
+  return getImportTemplate(rawType);
 }
 
 export async function getImportJob(id: string) {
-  const job = await getJob(id);
-  return summary(job);
+  return summary(await expireIfNeeded(await loadJob(id)));
 }
 
 export async function getImportRows(id: string, rawQuery: unknown) {
   const query = parseInput(importRowsQuerySchema, rawQuery);
-  const job = await getJob(id);
+  const job = await expireIfNeeded(await loadJob(id));
   const rows = storedRows(job);
+  const filtered = query.status === "ALL" ? rows : rows.filter((row) => row.status === query.status);
   const { skip, take } = parsePagination(query);
   return {
-    data: rows.slice(skip, skip + take).map(printableRow),
-    meta: buildPaginationMeta(query.page, query.pageSize, rows.length),
+    data: filtered.slice(skip, skip + take),
+    meta: buildPaginationMeta(query.page, query.pageSize, filtered.length),
   };
 }
 
-export async function getRejectedCsv(id: string): Promise<{ fileName: string; content: string }> {
-  const job = await getJob(id);
-  const options = job.options as { headers?: unknown };
-  const headers = Array.isArray(options?.headers)
-    ? options.headers.filter((header): header is string => typeof header === "string")
-    : [];
-  const delimiter = options && "delimiter" in options && options.delimiter === ";"
-    ? ";"
-    : ",";
+export async function getRejectedCsv(id: string) {
+  const job = await expireIfNeeded(await loadJob(id));
+  if (job.status !== ImportStatus.PREVIEWED) {
+    throw new AppError("Download rejected rows before importing; rejected CSV is only available for previews", 410, "IMPORT_EXPIRED");
+  }
   const rows = storedRows(job);
+  const options = job.options as { originalHeaders?: string[] };
   return {
     fileName: `${job.fileName.replace(/\.csv$/i, "")}-rejected.csv`,
-    content: rejectedRowsCsv(
-      { delimiter, headers, rows: [] },
-      rows,
-    ),
+    content: rejectedRowsCsv(rows, options.originalHeaders ?? []),
   };
+}
+
+function normalizedString(row: ImportPreviewRow, field: string): string | null {
+  const value = row.normalized?.[field];
+  return typeof value === "string" ? value : null;
+}
+
+function normalizedNullable(row: ImportPreviewRow, field: string): string | null {
+  const value = row.normalized?.[field];
+  return typeof value === "string" && value ? value : null;
+}
+
+function normalizedNumber(row: ImportPreviewRow, field: string): number | null {
+  const value = row.normalized?.[field];
+  return typeof value === "number" ? value : null;
 }
 
 export async function commitImport(id: string, rawBody: unknown, request: Request) {
-  const actorId = requestUserId(request);
-  const { rowNumbers } = parseInput(commitImportSchema, rawBody);
-  let job = await getJob(id);
-  if (job.createdById !== actorId) {
+  const creatorId = actorId(request);
+  const { includeWarnings } = parseInput(commitImportSchema, rawBody);
+  const job = await expireIfNeeded(await loadJob(id));
+  if (job.createdById !== creatorId) {
     throw new AppError("Only the administrator who created this preview can commit it", 403, "IMPORT_OWNER_REQUIRED");
   }
-  if (job.status === ImportStatus.EXPIRED) {
+  if (job.status === ImportStatus.EXPIRED || job.expiresAt.getTime() <= Date.now()) {
     throw new AppError("This import preview has expired", 410, "IMPORT_EXPIRED");
   }
   if (job.status !== ImportStatus.PREVIEWED) {
-    throw new AppError("This import preview is no longer available to commit", 409, "IMPORT_NOT_PREVIEWED");
-  }
-  if (job.expiresAt.getTime() <= Date.now()) {
-    job = await expireJob(job);
-    throw new AppError("This import preview has expired", 410, "IMPORT_EXPIRED");
+    throw new AppError("This import job has already been committed or discarded", 409, "ALREADY_COMMITTED");
   }
 
   const rows = storedRows(job);
-  const selectable = rows.filter((row) => row.errors.length === 0);
-  const requested = rowNumbers === undefined
-    ? selectable
-    : rows.filter((row) => rowNumbers.includes(row.rowNumber));
-  if (rowNumbers && new Set(rowNumbers).size !== rowNumbers.length) {
-    throw new AppError("rowNumbers must not contain duplicates", 400, "INVALID_ROWS");
-  }
-  if (rowNumbers && requested.length !== rowNumbers.length) {
-    throw new AppError("One or more requested rows do not exist in this preview", 400, "INVALID_ROWS");
-  }
-  if (requested.some((row) => row.errors.length > 0)) {
-    throw new AppError("Rows with validation errors cannot be committed", 400, "INVALID_ROWS");
-  }
-  if (!requested.length) {
-    throw new AppError("There are no valid rows to import", 400, "NO_VALID_ROWS");
-  }
+  const selected = rows.filter((row) =>
+    row.status === "VALID" || (includeWarnings && row.status === "WARNING"),
+  );
+  const skippedWarnings = rows.filter((row) => row.status === "WARNING" && !includeWarnings).length;
+  const skippedErrors = rows.filter((row) => row.status === "ERROR").length;
+  if (!selected.length) throw new AppError("There are no valid rows to import", 400, "NO_VALID_ROWS");
 
-  const commitResult = {
-    selectedRows: requested.length,
-    skippedRows: rows.length - requested.length,
-    importedRows: requested.length,
+  const result = {
+    created: selected.length,
+    enrolled: selected.filter((row) => row.enrollment).length,
+    skippedWarnings,
+    skippedErrors,
   };
+  const ids = new Map(selected.map((row) => [row.rowNumber, randomUUID()]));
 
   try {
-    const updated = await prisma.$transaction(async (transaction) => {
+    return await prisma.$transaction(async (transaction) => {
       const claim = await transaction.importJob.updateMany({
         where: {
-          id: job.id,
-          createdById: actorId,
+          id,
+          createdById: creatorId,
           status: ImportStatus.PREVIEWED,
           expiresAt: { gt: new Date() },
         },
         data: { status: ImportStatus.COMMITTED },
       });
       if (claim.count !== 1) {
-        throw new AppError("This import preview is no longer available to commit", 409, "IMPORT_NOT_PREVIEWED");
+        throw new AppError("This import job is no longer available to commit", 409, "ALREADY_COMMITTED");
       }
 
       if (job.type === ImportType.STUDENTS) {
-        const studentRows = requested.filter((row) => row.commitData && "studentNo" in row.commitData);
-        const studentData = studentRows.map((row) => {
-          const data = row.commitData as CommitStudentData;
-          return {
-            id: randomUUID(),
-            source: data,
-            record: {
-              studentNo: data.studentNo,
-              firstName: data.firstName,
-              middleName: data.middleName,
-              lastName: data.lastName,
-              sex: data.sex,
-              birthDate: new Date(`${data.birthDate}T00:00:00.000Z`),
-              address: data.address,
-              guardianName: data.guardianName,
-              guardianContact: data.guardianContact,
-            },
-          };
-        });
+        const studentRows = selected.map((row) => ({
+          id: ids.get(row.rowNumber)!,
+          row,
+        }));
         await transaction.student.createMany({
-          data: studentData.map(({ id, record }) => ({ id, ...record })),
+          data: studentRows.map(({ id: studentId, row }) => ({
+            id: studentId,
+            studentNo: normalizedString(row, "studentNo")!,
+            firstName: normalizedString(row, "firstName")!,
+            middleName: normalizedNullable(row, "middleName"),
+            lastName: normalizedString(row, "lastName")!,
+            sex: normalizedString(row, "sex") as "MALE" | "FEMALE",
+            birthDate: new Date(`${normalizedString(row, "birthDate")}T00:00:00.000Z`),
+            address: normalizedNullable(row, "address"),
+            guardianName: normalizedNullable(row, "guardianName"),
+            guardianContact: normalizedNullable(row, "guardianContact"),
+          })),
         });
-        const enrollments = studentData.flatMap(({ id, source }) => {
-          const { sectionId, schoolYearId } = source;
-          if (!sectionId || !schoolYearId) return [];
+
+        const sectionIds = [...new Set(selected.flatMap((row) => row.enrollment ? [row.enrollment.sectionId] : []))];
+        const sections = sectionIds.length
+          ? await transaction.section.findMany({
+              where: { id: { in: sectionIds } },
+              select: { id: true, schoolYearId: true },
+            })
+          : [];
+        const schoolYearBySection = new Map(sections.map((section) => [section.id, section.schoolYearId]));
+        const enrollmentData = selected.flatMap((row) => {
+          if (!row.enrollment) return [];
+          const schoolYearId = schoolYearBySection.get(row.enrollment.sectionId);
+          if (!schoolYearId) {
+            throw new AppError("A selected section is no longer available; re-run the preview", 409, "IMPORT_CONFLICT");
+          }
           return [{
             id: randomUUID(),
-            studentId: id,
-            sectionId,
+            studentId: ids.get(row.rowNumber)!,
+            sectionId: row.enrollment.sectionId,
             schoolYearId,
             status: EnrollmentStatus.ENROLLED,
           }];
         });
-        if (enrollments.length) {
-          await transaction.enrollment.createMany({
-            data: enrollments,
-          });
-        }
+        if (enrollmentData.length) await transaction.enrollment.createMany({ data: enrollmentData });
       } else {
-        const teacherRows = requested.filter((row) => row.commitData && "employeeNo" in row.commitData);
         await transaction.teacher.createMany({
-          data: teacherRows.map((row) => {
-            const data = row.commitData as {
-              employeeNo: string; firstName: string; middleName: string | null;
-              lastName: string; department: string | null; contactNo: string | null;
-            };
-            return { id: randomUUID(), ...data };
-          }),
+          data: selected.map((row) => ({
+            id: ids.get(row.rowNumber)!,
+            employeeNo: normalizedString(row, "employeeNo")!,
+            firstName: normalizedString(row, "firstName")!,
+            middleName: normalizedNullable(row, "middleName"),
+            lastName: normalizedString(row, "lastName")!,
+            department: normalizedNullable(row, "department"),
+            contactNo: normalizedNullable(row, "contactNo"),
+          })),
         });
       }
 
       await logAudit({
-        userId: actorId,
+        userId: creatorId,
         action: "IMPORT_COMMIT",
-        entity: job.type === ImportType.STUDENTS ? "Student" : "Teacher",
-        entityId: job.id,
-        details: auditDetails({ type: job.type, ...commitResult }),
+        entity: "ImportJob",
+        entityId: id,
+        details: json({ ...result, fileHash: job.fileHash, type: job.type }),
         ipAddress: request.ip,
       }, transaction);
-
-      return transaction.importJob.update({
-        where: { id: job.id },
+      const updated = await transaction.importJob.update({
+        where: { id },
         data: {
           status: ImportStatus.COMMITTED,
           committedAt: new Date(),
-          commitResult,
-          previewRows: [],
+          result: json(result),
+          rows: Prisma.DbNull,
         },
       });
-    });
-    return { ...summary(updated), result: commitResult };
+      return { ...summary(updated), result };
+    }, { timeout: 30_000 });
   } catch (error) {
-    if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {
-      throw new AppError(
-        "Import conflicts with existing records. No rows were imported; preview the file again.",
-        409,
-        "IMPORT_CONFLICT",
-      );
-    }
-    if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2003") {
-      throw new AppError(
-        "A referenced section or school year changed. No rows were imported; preview the file again.",
-        409,
-        "IMPORT_CONFLICT",
-      );
+    if (error instanceof Prisma.PrismaClientKnownRequestError) {
+      if (error.code === "P2002") {
+        throw new AppError(
+          "An imported number was added after preview. Re-run the preview; no rows were imported.",
+          409,
+          "IMPORT_CONFLICT",
+        );
+      }
+      if (error.code === "P2025") throw new AppError("Import job not found", 404, "IMPORT_NOT_FOUND");
+      if (error.code === "P2003") {
+        throw new AppError("A referenced section or school year changed. Re-run the preview.", 409, "IMPORT_CONFLICT");
+      }
     }
     throw error;
   }
 }
 
 export async function discardImport(id: string, request: Request) {
-  const actorId = requestUserId(request);
-  const job = await getJob(id);
-  if (job.createdById !== actorId) {
+  const creatorId = actorId(request);
+  const job = await expireIfNeeded(await loadJob(id));
+  if (job.createdById !== creatorId) {
     throw new AppError("Only the administrator who created this preview can discard it", 403, "IMPORT_OWNER_REQUIRED");
   }
   if (job.status !== ImportStatus.PREVIEWED) {
-    throw new AppError("This import preview can no longer be discarded", 409, "IMPORT_NOT_PREVIEWED");
+    throw new AppError("Only a previewed import can be discarded", 409, "IMPORT_NOT_PREVIEWED");
   }
-  const updated = await prisma.$transaction(async (transaction) => {
-    const claim = await transaction.importJob.updateMany({
+  return prisma.$transaction(async (transaction) => {
+    const changed = await transaction.importJob.updateMany({
       where: {
         id,
-        createdById: actorId,
+        createdById: creatorId,
         status: ImportStatus.PREVIEWED,
         expiresAt: { gt: new Date() },
       },
-      data: { status: ImportStatus.DISCARDED, previewRows: [] },
+      data: { status: ImportStatus.DISCARDED, rows: Prisma.DbNull },
     });
-    if (claim.count !== 1) {
-      throw new AppError("This import preview can no longer be discarded", 409, "IMPORT_NOT_PREVIEWED");
+    if (changed.count !== 1) {
+      throw new AppError("Only a previewed import can be discarded", 409, "IMPORT_NOT_PREVIEWED");
     }
-    const discarded = await transaction.importJob.findUniqueOrThrow({ where: { id } });
     await logAudit({
-      userId: actorId,
+      userId: creatorId,
       action: "IMPORT_DISCARD",
       entity: "ImportJob",
       entityId: id,
-      details: auditDetails({ type: job.type, totalRows: job.totalRows }),
+      details: json({ type: job.type, totals: job.totals }),
       ipAddress: request.ip,
     }, transaction);
-    return discarded;
+    return summary(await transaction.importJob.findUniqueOrThrow({ where: { id } }));
   });
-  return summary(updated);
 }
 
 export async function listImportJobs(rawQuery: unknown) {
@@ -499,7 +580,7 @@ export async function listImportJobs(rawQuery: unknown) {
   const { skip, take } = parsePagination(query);
   await prisma.importJob.updateMany({
     where: { status: ImportStatus.PREVIEWED, expiresAt: { lte: new Date() } },
-    data: { status: ImportStatus.EXPIRED, previewRows: [] },
+    data: { status: ImportStatus.EXPIRED, rows: Prisma.DbNull },
   });
   const where: Prisma.ImportJobWhereInput = {
     ...(query.type ? { type: query.type } : {}),
@@ -514,21 +595,22 @@ export async function listImportJobs(rawQuery: unknown) {
       select: {
         id: true,
         type: true,
-        status: true,
         fileName: true,
-        totalRows: true,
-        validRows: true,
-        warningRows: true,
-        errorRows: true,
-        expiresAt: true,
-        committedAt: true,
-        commitResult: true,
-        createdById: true,
+        status: true,
+        totals: true,
+        result: true,
+        createdBy: { select: { email: true } },
         createdAt: true,
-        updatedAt: true,
+        committedAt: true,
       },
     }),
     prisma.importJob.count({ where }),
   ]);
-  return { data: jobs, meta: buildPaginationMeta(query.page, query.pageSize, total) };
+  return {
+    data: jobs.map(({ createdBy, ...job }) => ({
+      ...job,
+      createdByEmail: createdBy?.email ?? null,
+    })),
+    meta: buildPaginationMeta(query.page, query.pageSize, total),
+  };
 }

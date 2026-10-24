@@ -285,26 +285,21 @@ model AuditLog {
 }
 
 model ImportJob {
-  id             String       @id @default(cuid())
-  type           ImportType
-  status         ImportStatus @default(PREVIEWED)
-  fileName       String
-  fileHash       String
-  options        Json?
-  totalRows      Int
-  validRows      Int
-  warningRows    Int
-  errorRows      Int
-  previewRows    Json
-  expiresAt      DateTime
-  committedAt   DateTime?
-  commitResult   Json?
-  createdById    String
-  createdAt      DateTime     @default(now())
-  updatedAt      DateTime     @updatedAt
-  createdBy      User         @relation(fields: [createdById], references: [id], onDelete: Restrict)
+  id          String       @id @default(cuid())
+  type        ImportType
+  status      ImportStatus @default(PREVIEWED)
+  fileName    String
+  fileHash    String
+  options     Json
+  totals      Json
+  rows        Json?
+  expiresAt   DateTime
+  createdById String?
+  committedAt DateTime?
+  result      Json?
+  createdAt   DateTime     @default(now())
+  createdBy   User?        @relation(fields: [createdById], references: [id], onDelete: SetNull)
 
-  @@index([createdById, createdAt])
+  @@index([createdById])
   @@index([status, expiresAt])
-  @@index([fileHash, status])
 }
