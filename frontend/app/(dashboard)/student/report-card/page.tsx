@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import Link from "next/link";
 import { AlertCircle, ArrowLeft, RefreshCcw } from "lucide-react";
 import { DashboardLayout } from "../../../../components/DashboardLayout";
@@ -12,17 +12,13 @@ import { useMyReportCard, useMyReportCardYears } from "../../../../features/repo
 
 export default function StudentReportCardPage() {
   const years = useMyReportCardYears();
-  const [schoolYearId, setSchoolYearId] = useState<string | undefined>(undefined);
+  const [schoolYearId, setSchoolYearId] = useState<string | undefined>(() => {
+    if (typeof window === "undefined") return undefined;
+    return new URLSearchParams(window.location.search).get("schoolYearId") ?? undefined;
+  });
   const availableYears = years.data ?? [];
-
-  useEffect(() => {
-    if (!schoolYearId && availableYears[0]) {
-      setSchoolYearId(availableYears[0].id);
-    }
-  }, [availableYears, schoolYearId]);
-
-  const reportCard = useMyReportCard(schoolYearId);
   const selectedId = schoolYearId ?? availableYears[0]?.id;
+  const reportCard = useMyReportCard(selectedId);
 
   if (years.isLoading || (selectedId && reportCard.isLoading && !reportCard.data)) {
     return (
@@ -67,7 +63,14 @@ export default function StudentReportCardPage() {
               <span className="font-semibold">School year</span>
               <select
                 value={selectedId ?? ""}
-                onChange={(event) => setSchoolYearId(event.target.value || undefined)}
+                onChange={(event) => {
+                  const nextId = event.target.value || undefined;
+                  setSchoolYearId(nextId);
+                  const url = new URL(window.location.href);
+                  if (nextId) url.searchParams.set("schoolYearId", nextId);
+                  else url.searchParams.delete("schoolYearId");
+                  window.history.replaceState(null, "", url);
+                }}
                 className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-700 outline-none ring-0 focus:border-indigo-500"
               >
                 {availableYears.length ? (

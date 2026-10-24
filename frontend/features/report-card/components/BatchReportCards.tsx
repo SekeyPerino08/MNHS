@@ -1,10 +1,9 @@
 "use client";
 
-import { useMemo, useRef, useState } from "react";
+import { useMemo, useState } from "react";
 import { FileSearch, Printer, Search } from "lucide-react";
 import { useSectionReportCards } from "../hooks";
 import { ErrorState } from "../../../components/shared";
-import type { ReportCard } from "../../../types/report-card";
 import { ReportCardView } from "./ReportCard";
 
 export function BatchReportCards({
@@ -14,8 +13,6 @@ export function BatchReportCards({
 }: Readonly<{ sectionId: string; includeUnreleased?: boolean; title: string }>) {
   const reportCards = useSectionReportCards(sectionId, includeUnreleased);
   const [filter, setFilter] = useState("");
-  const [focusedId, setFocusedId] = useState<string | null>(null);
-  const cardRefs = useRef<Record<string, HTMLDivElement | null>>({});
 
   const filteredCards = useMemo(() => {
     const value = filter.trim().toLowerCase();
@@ -25,14 +22,6 @@ export function BatchReportCards({
       return fullName.includes(value);
     });
   }, [filter, reportCards.data]);
-
-  const handleFocus = (studentId: string) => {
-    setFocusedId(studentId);
-    const element = cardRefs.current[studentId];
-    if (element) {
-      element.scrollIntoView({ behavior: "smooth", block: "start" });
-    }
-  };
 
   if (reportCards.isLoading) {
     return <div className="space-y-4 animate-pulse"><div className="h-12 rounded-xl bg-slate-200" /><div className="h-48 rounded-2xl bg-slate-200" /><div className="h-96 rounded-2xl bg-slate-200" /></div>;
@@ -91,11 +80,7 @@ export function BatchReportCards({
 
       <div className="space-y-6 print:space-y-0">
         {filteredCards.map((card) => (
-          <div
-            key={card.student.id}
-            ref={(node) => { cardRefs.current[card.student.id] = node; }}
-            className={`${focusedId === card.student.id ? "ring-2 ring-indigo-500" : ""} print:page-break-after-always`}
-          >
+          <div key={card.student.id} className="print:page-break-after-always">
             <ReportCardView data={card} />
           </div>
         ))}

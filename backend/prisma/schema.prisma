@@ -42,73 +42,79 @@ enum AttendanceStatus {
 }
 
 model User {
-  id           String    @id @default(cuid())
-  email        String    @unique
-  passwordHash String
-  role         Role
-  firstName    String
-  lastName     String
-  isActive     Boolean   @default(true)
-  createdAt    DateTime  @default(now())
-  updatedAt    DateTime  @updatedAt
-  student      Student?
-  teacher      Teacher?
-  auditLogs    AuditLog[]
-  attendanceRecords Attendance[] @relation("AttendanceRecorder")
-  recordedGrades Grade[] @relation("GradeRecorder")
-  lockedTerms  Term[] @relation("TermLocker")
+  id                 String       @id @default(cuid())
+  email              String       @unique
+  passwordHash       String
+  role               Role
+  firstName          String
+  lastName           String
+  isActive           Boolean      @default(true)
+  mustChangePassword Boolean      @default(false)
+  passwordChangedAt  DateTime?
+  tokenVersion       Int          @default(0)
+  failedLoginCount   Int          @default(0)
+  lockedUntil        DateTime?
+  lastLoginAt        DateTime?
+  createdAt          DateTime     @default(now())
+  updatedAt          DateTime     @updatedAt
+  student            Student?
+  teacher            Teacher?
+  auditLogs          AuditLog[]
+  attendanceRecords  Attendance[] @relation("AttendanceRecorder")
+  recordedGrades     Grade[]      @relation("GradeRecorder")
+  lockedTerms        Term[]       @relation("TermLocker")
 }
 
 model Student {
-  id               String          @id @default(cuid())
-  studentNo        String          @unique
-  userId           String?         @unique
-  firstName        String
-  middleName       String?
-  lastName         String
-  sex              Sex
-  birthDate        DateTime?
-  address          String?
-  guardianName     String?
-  guardianContact  String?
-  status           StudentStatus   @default(ACTIVE)
-  createdAt        DateTime        @default(now())
-  updatedAt        DateTime        @updatedAt
-  user             User?           @relation(fields: [userId], references: [id], onDelete: SetNull)
-  enrollments      Enrollment[]
+  id                String        @id @default(cuid())
+  studentNo         String        @unique
+  userId            String?       @unique
+  firstName         String
+  middleName        String?
+  lastName          String
+  sex               Sex
+  birthDate         DateTime?
+  address           String?
+  guardianName      String?
+  guardianContact   String?
+  status            StudentStatus @default(ACTIVE)
+  createdAt         DateTime      @default(now())
+  updatedAt         DateTime      @updatedAt
+  user              User?         @relation(fields: [userId], references: [id], onDelete: SetNull)
+  enrollments       Enrollment[]
   attendanceRecords Attendance[]
-  grades           Grade[]
+  grades            Grade[]
 
   @@index([userId])
 }
 
 model Teacher {
-  id          String         @id @default(cuid())
-  employeeNo  String         @unique
-  userId      String?        @unique
-  firstName   String
-  middleName  String?
-  lastName    String
-  department  String?
-  contactNo   String?
-  isActive    Boolean        @default(true)
-  createdAt   DateTime       @default(now())
-  updatedAt   DateTime       @updatedAt
-  user        User?          @relation(fields: [userId], references: [id], onDelete: SetNull)
-  offerings   ClassOffering[]
-  advisedSections Section[]  @relation("SectionAdviser")
+  id              String          @id @default(cuid())
+  employeeNo      String          @unique
+  userId          String?         @unique
+  firstName       String
+  middleName      String?
+  lastName        String
+  department      String?
+  contactNo       String?
+  isActive        Boolean         @default(true)
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+  user            User?           @relation(fields: [userId], references: [id], onDelete: SetNull)
+  offerings       ClassOffering[]
+  advisedSections Section[]       @relation("SectionAdviser")
 
   @@index([userId])
 }
 
 model SchoolYear {
-  id             String         @id @default(cuid())
-  name           String         @unique
+  id             String          @id @default(cuid())
+  name           String          @unique
   startDate      DateTime
   endDate        DateTime
-  isCurrent      Boolean        @default(false)
-  createdAt      DateTime       @default(now())
-  updatedAt      DateTime       @updatedAt
+  isCurrent      Boolean         @default(false)
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
   terms          Term[]
   enrollments    Enrollment[]
   classOfferings ClassOffering[]
@@ -116,20 +122,20 @@ model SchoolYear {
 }
 
 model Term {
-  id             String         @id @default(cuid())
-  schoolYearId   String
-  name           String
-  termNumber     Int
-  startDate      DateTime
-  endDate        DateTime
-  createdAt      DateTime       @default(now())
-  updatedAt      DateTime       @updatedAt
-  schoolYear     SchoolYear     @relation(fields: [schoolYearId], references: [id], onDelete: Restrict)
-  grades         Grade[]
-  gradesLocked   Boolean       @default(false)
-  lockedAt       DateTime?
-  lockedById     String?
-  lockedBy       User?         @relation("TermLocker", fields: [lockedById], references: [id], onDelete: SetNull)
+  id           String     @id @default(cuid())
+  schoolYearId String
+  name         String
+  termNumber   Int
+  startDate    DateTime
+  endDate      DateTime
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+  schoolYear   SchoolYear @relation(fields: [schoolYearId], references: [id], onDelete: Restrict)
+  grades       Grade[]
+  gradesLocked Boolean    @default(false)
+  lockedAt     DateTime?
+  lockedById   String?
+  lockedBy     User?      @relation("TermLocker", fields: [lockedById], references: [id], onDelete: SetNull)
 
   @@unique([schoolYearId, termNumber])
   @@index([schoolYearId])
@@ -137,26 +143,26 @@ model Term {
 }
 
 model Subject {
-  id             String         @id @default(cuid())
-  code           String         @unique
+  id             String          @id @default(cuid())
+  code           String          @unique
   name           String
   description    String?
   gradeLevel     Int
-  createdAt      DateTime       @default(now())
-  updatedAt      DateTime       @updatedAt
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
   classOfferings ClassOffering[]
 }
 
 model Section {
-  id             String         @id @default(cuid())
+  id             String          @id @default(cuid())
   name           String
   gradeLevel     Int
   schoolYearId   String
   adviserId      String?
-  createdAt      DateTime       @default(now())
-  updatedAt      DateTime       @updatedAt
-  schoolYear     SchoolYear     @relation(fields: [schoolYearId], references: [id], onDelete: Restrict)
-  adviser        Teacher?       @relation("SectionAdviser", fields: [adviserId], references: [id], onDelete: SetNull)
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+  schoolYear     SchoolYear      @relation(fields: [schoolYearId], references: [id], onDelete: Restrict)
+  adviser        Teacher?        @relation("SectionAdviser", fields: [adviserId], references: [id], onDelete: SetNull)
   enrollments    Enrollment[]
   classOfferings ClassOffering[]
 
@@ -186,17 +192,17 @@ model Enrollment {
 }
 
 model ClassOffering {
-  id           String     @id @default(cuid())
+  id           String       @id @default(cuid())
   subjectId    String
   sectionId    String
   teacherId    String
   schoolYearId String
-  createdAt    DateTime   @default(now())
-  updatedAt    DateTime   @updatedAt
-  subject      Subject    @relation(fields: [subjectId], references: [id], onDelete: Restrict)
-  section      Section    @relation(fields: [sectionId], references: [id], onDelete: Restrict)
-  teacher      Teacher    @relation(fields: [teacherId], references: [id], onDelete: Restrict)
-  schoolYear   SchoolYear @relation(fields: [schoolYearId], references: [id], onDelete: Restrict)
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
+  subject      Subject      @relation(fields: [subjectId], references: [id], onDelete: Restrict)
+  section      Section      @relation(fields: [sectionId], references: [id], onDelete: Restrict)
+  teacher      Teacher      @relation(fields: [teacherId], references: [id], onDelete: Restrict)
+  schoolYear   SchoolYear   @relation(fields: [schoolYearId], references: [id], onDelete: Restrict)
   attendance   Attendance[]
   grades       Grade[]
 
@@ -208,18 +214,18 @@ model ClassOffering {
 }
 
 model Attendance {
-  id             String           @id @default(cuid())
-  studentId      String
+  id              String           @id @default(cuid())
+  studentId       String
   classOfferingId String
-  date           DateTime         @db.Date
-  status         AttendanceStatus
-  remarks        String?
-  recordedById   String?
-  createdAt      DateTime         @default(now())
-  updatedAt      DateTime         @updatedAt
-  student        Student          @relation(fields: [studentId], references: [id], onDelete: Restrict)
-  classOffering  ClassOffering    @relation(fields: [classOfferingId], references: [id], onDelete: Restrict)
-  recordedBy     User?            @relation("AttendanceRecorder", fields: [recordedById], references: [id], onDelete: SetNull)
+  date            DateTime         @db.Date
+  status          AttendanceStatus
+  remarks         String?
+  recordedById    String?
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+  student         Student          @relation(fields: [studentId], references: [id], onDelete: Restrict)
+  classOffering   ClassOffering    @relation(fields: [classOfferingId], references: [id], onDelete: Restrict)
+  recordedBy      User?            @relation("AttendanceRecorder", fields: [recordedById], references: [id], onDelete: SetNull)
 
   @@unique([studentId, classOfferingId, date])
   @@index([studentId])
@@ -228,19 +234,19 @@ model Attendance {
 }
 
 model Grade {
-  id             String        @id @default(cuid())
-  studentId      String
+  id              String        @id @default(cuid())
+  studentId       String
   classOfferingId String
-  termId         String
-  score          Decimal       @db.Decimal(5, 2)
-  remarks        String?
-  recordedById   String?
-  createdAt      DateTime      @default(now())
-  updatedAt      DateTime      @updatedAt
-  student        Student       @relation(fields: [studentId], references: [id], onDelete: Restrict)
-  classOffering  ClassOffering @relation(fields: [classOfferingId], references: [id], onDelete: Restrict)
-  term           Term          @relation(fields: [termId], references: [id], onDelete: Restrict)
-  recordedBy     User?         @relation("GradeRecorder", fields: [recordedById], references: [id], onDelete: SetNull)
+  termId          String
+  score           Decimal       @db.Decimal(5, 2)
+  remarks         String?
+  recordedById    String?
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+  student         Student       @relation(fields: [studentId], references: [id], onDelete: Restrict)
+  classOffering   ClassOffering @relation(fields: [classOfferingId], references: [id], onDelete: Restrict)
+  term            Term          @relation(fields: [termId], references: [id], onDelete: Restrict)
+  recordedBy      User?         @relation("GradeRecorder", fields: [recordedById], references: [id], onDelete: SetNull)
 
   @@unique([studentId, classOfferingId, termId])
   @@index([studentId])

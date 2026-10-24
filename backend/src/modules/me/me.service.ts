@@ -102,3 +102,76 @@ export async function getMyEnrollment(userId: string) {
   });
   return { enrollment, classOfferings };
 }
+
+export async function getMyProfile(userId: string) {
+  const user = await prisma.user.findUnique({
+    where: { id: userId },
+    select: {
+      email: true,
+      role: true,
+      createdAt: true,
+      lastLoginAt: true,
+      passwordChangedAt: true,
+      student: {
+        select: {
+          studentNo: true,
+          firstName: true,
+          middleName: true,
+          lastName: true,
+          enrollments: {
+            where: {
+              status: EnrollmentStatus.ENROLLED,
+              schoolYear: { isCurrent: true },
+            },
+            take: 1,
+            select: {
+              section: { select: { name: true, gradeLevel: true } },
+            },
+          },
+        },
+      },
+      teacher: {
+        select: {
+          employeeNo: true,
+          firstName: true,
+          middleName: true,
+          lastName: true,
+          department: true,
+          contactNo: true,
+        },
+      },
+    },
+  });
+  if (!user) throw new AppError("Not authenticated", 401);
+
+  const fullName = (person: { firstName: string; middleName: string | null; lastName: string }) =>
+    [person.firstName, person.middleName, person.lastName].filter(Boolean).join(" ");
+  let person: unknown = null;
+  if (user.student) {
+    const section = user.student.enrollments[0]?.section;
+    person = {
+      type: "STUDENT",
+      studentNo: user.student.studentNo,
+      fullName: fullName(user.student),
+      currentSection: section ? `Grade ${section.gradeLevel} - ${section.name}` : null,
+    };
+  } else if (user.teacher) {
+    person = {
+      type: "TEACHER",
+      employeeNo: user.teacher.employeeNo,
+      fullName: fullName(user.teacher),
+      department: user.teacher.department,
+      contactNo: user.teacher.contactNo,
+    };
+  }
+  return {
+    user: {
+      email: user.email,
+      role: user.role,
+      createdAt: user.createdAt,
+      lastLoginAt: user.lastLoginAt,
+      passwordChangedAt: user.passwordChangedAt,
+    },
+    person,
+  };
+}

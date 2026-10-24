@@ -1,7 +1,6 @@
-import { AlertTriangle, BookOpen, CheckCircle2, CircleDashed, LockOpen, Printer, ShieldCheck, UserRound } from "lucide-react";
+import { AlertTriangle, BookOpen, CheckCircle2, ShieldCheck, UserRound } from "lucide-react";
 import type { ReportCard } from "../../../types/report-card";
 import { formatRate } from "../../attendance/config";
-import { manilaToday } from "../../../lib/dates";
 
 const schoolName = process.env.NEXT_PUBLIC_SCHOOL_NAME ?? "School Management System";
 
@@ -16,26 +15,7 @@ function fullName(student: ReportCard["student"]) {
   return `${student.lastName}, ${student.firstName}${student.middleName ? ` ${student.middleName}` : ""}`;
 }
 
-function gradeDescriptor(score: number | null): string | null {
-  if (score === null) return null;
-  if (score >= 90) return "Outstanding";
-  if (score >= 85) return "Very Satisfactory";
-  if (score >= 80) return "Satisfactory";
-  if (score >= 75) return "Fairly Satisfactory";
-  return "Did Not Meet Expectations";
-}
-
-function passingState(score: number | null): { label: string; icon: typeof CheckCircle2 | typeof AlertTriangle; classes: string } {
-  if (score === null) {
-    return { label: "Pending", icon: CircleDashed, classes: "text-slate-500" };
-  }
-  return score >= 75
-    ? { label: "Passed", icon: CheckCircle2, classes: "text-emerald-700" }
-    : { label: "Below 75", icon: AlertTriangle, classes: "text-rose-700" };
-}
-
 export function ReportCardView({ data }: Readonly<{ data: ReportCard }>) {
-  const termsById = new Map(data.terms.map((term) => [term.id, term]));
   const quarterOrder = [...data.terms].sort((a, b) => a.order - b.order);
 
   return (

@@ -18,6 +18,7 @@ async function seed(): Promise<void> {
       role: Role.ADMIN,
       firstName: "School",
       lastName: "Administrator",
+      mustChangePassword: false,
     },
     create: {
       email: "admin@mnhs.local",
@@ -25,6 +26,7 @@ async function seed(): Promise<void> {
       role: Role.ADMIN,
       firstName: "School",
       lastName: "Administrator",
+      mustChangePassword: false,
     },
   });
 
@@ -42,6 +44,7 @@ async function seed(): Promise<void> {
         isActive: true,
         firstName: details.firstName,
         lastName: details.lastName,
+        mustChangePassword: false,
       },
       create: {
         email: details.email,
@@ -49,6 +52,7 @@ async function seed(): Promise<void> {
         role: Role.TEACHER,
         firstName: details.firstName,
         lastName: details.lastName,
+        mustChangePassword: false,
       },
     });
     teachers.push(
@@ -167,6 +171,7 @@ async function seed(): Promise<void> {
               isActive: true,
               firstName,
               lastName,
+              mustChangePassword: false,
             },
             create: {
               email: `student${index + 1}@school.test`,
@@ -175,6 +180,7 @@ async function seed(): Promise<void> {
               isActive: true,
               firstName,
               lastName,
+              mustChangePassword: false,
             },
           })
         : null;

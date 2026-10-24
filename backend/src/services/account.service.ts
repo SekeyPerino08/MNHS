@@ -76,6 +76,7 @@ export async function createPersonAccount(input: PersonAccountInput) {
           passwordHash,
           role,
           isActive,
+          mustChangePassword: true,
           firstName: person.firstName,
           lastName: person.lastName,
           ...relation,

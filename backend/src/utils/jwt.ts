@@ -5,6 +5,7 @@ import { env } from "../config/env.js";
 export interface AuthTokenPayload {
   sub: string;
   role: Role;
+  ver: number;
 }
 
 export function signToken(payload: AuthTokenPayload): string {
@@ -19,10 +20,12 @@ export function verifyToken(token: string): AuthTokenPayload {
   if (
     typeof decoded === "string" ||
     typeof decoded.sub !== "string" ||
+    typeof decoded.ver !== "number" ||
+    !Number.isInteger(decoded.ver) ||
     !Object.values(Role).includes(decoded.role as Role)
   ) {
     throw new jwt.JsonWebTokenError("Invalid token payload");
   }
 
-  return { sub: decoded.sub, role: decoded.role as Role };
+  return { sub: decoded.sub, role: decoded.role as Role, ver: decoded.ver };
 }
