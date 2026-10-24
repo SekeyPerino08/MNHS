@@ -10,11 +10,13 @@ import { useAuth } from "../../../providers/AuthProvider";
 import { userDisplayName } from "../../../lib/auth";
 import { useMyAttendance } from "../../../features/attendance/hooks";
 import { formatRate } from "../../../features/attendance/config";
+import { useMyGrades } from "../../../features/grades/hooks";
 
 export default function StudentDashboardPage() {
   const { user } = useAuth();
   const query = useMyEnrollment();
   const attendance = useMyAttendance({ page: 1, pageSize: 100 });
+  const grades = useMyGrades();
   const enrollment = query.data?.enrollment;
   return <RoleGuard allowedRoles={["STUDENT"]}>
     <DashboardLayout>
@@ -25,7 +27,7 @@ export default function StudentDashboardPage() {
             <StudentStat icon={<GraduationCap size={20} />} label="Section" value={enrollment?.section ? `Grade ${enrollment.section.gradeLevel} · ${enrollment.section.name}` : "Not enrolled"} />
             <StudentStat icon={<BookOpen size={20} />} label="Subjects" value={String(query.data?.classOfferings.length ?? 0)} />
             <StudentStat icon={<GraduationCap size={20} />} label="Adviser" value={enrollment?.section?.adviser ? `${enrollment.section.adviser.firstName} ${enrollment.section.adviser.lastName}` : "Not assigned"} />
-            <StudentStat icon={<BookOpen size={20} />} label="My grades" value="Coming soon" />
+            <Link href="/student/grades" className="rounded-2xl outline-none focus-visible:ring-2 focus-visible:ring-indigo-500"><StudentStat icon={<BookOpen size={20} />} label="My grades" value={grades.isLoading ? "Loading…" : grades.isError ? "Unavailable" : grades.data?.generalAverage === null ? "No records yet" : `${grades.data!.generalAverage.toFixed(2)}%`} /></Link>
             <Link href="/student/attendance" className="rounded-2xl outline-none focus-visible:ring-2 focus-visible:ring-indigo-500"><StudentStat icon={<ClipboardCheck size={20} />} label="My attendance" value={attendance.isLoading ? "Loading…" : attendance.isError ? "Unavailable" : attendance.data?.records.length ? formatRate(attendance.data.summary.overall.rate) : "No records yet"} /></Link>
           </div>
           <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm"><div className="flex flex-wrap items-center justify-between gap-3"><div><h2 className="font-semibold text-slate-900">My learning</h2><p className="mt-1 text-sm text-slate-500">{enrollment ? `School year ${enrollment.schoolYear.name}` : "Contact the registrar to complete your enrollment."}</p></div><Link href="/student/subjects" className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-700">View my subjects</Link></div></section>

@@ -28,7 +28,7 @@ export function ClassCard({ offering }: Readonly<{ offering: ClassOfferingRecord
     <Link href={`/teacher/classes/${offering.id}`} className="mt-5 rounded-lg bg-indigo-600 px-3 py-2 text-center text-sm font-semibold text-white hover:bg-indigo-700">View class</Link>
     <div className="mt-3 grid grid-cols-2 gap-2">
       <Link href={`/teacher/classes/${offering.id}/attendance`} aria-label={`Take attendance for ${offering.subject.name}, Grade ${offering.section.gradeLevel} ${offering.section.name}`} className="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg border border-indigo-200 px-2 py-2 text-xs font-semibold text-indigo-700 hover:bg-indigo-50"><ClipboardCheck size={15} /> Attendance</Link>
-      <button type="button" disabled title="Coming soon" aria-label="Grades coming soon" className="inline-flex cursor-not-allowed items-center justify-center gap-2 rounded-lg border border-slate-200 px-2 py-2 text-xs font-semibold text-slate-400"><BookOpen size={15} /> Grades <span className="sr-only">Coming soon</span></button>
+      <Link href={`/teacher/classes/${offering.id}/grades`} aria-label={`View grade sheet for ${offering.subject.name}, Grade ${offering.section.gradeLevel} ${offering.section.name}`} className="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg border border-slate-200 px-2 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50"><BookOpen size={15} /> Grades</Link>
     </div>
     <Link href={`/teacher/classes/${offering.id}/attendance/summary`} className="mt-3 self-start text-xs font-semibold text-slate-600 underline-offset-2 hover:text-indigo-700 hover:underline">Attendance summary</Link>
   </article>;
