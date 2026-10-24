@@ -1,6 +1,7 @@
 import { z } from "zod";
+import { idSchema } from "../../utils/idSchema.js";
 
-const id = z.string().trim().min(1, "An ID is required");
+const id = idSchema;
 const page = z.coerce.number().int().positive().default(1);
 const pageSize = z.coerce.number().int().positive().max(100).default(10);
 

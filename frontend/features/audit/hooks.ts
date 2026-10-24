@@ -8,6 +8,6 @@ export function useAuditLogs(params: AuditParams) {
   return useQuery({ queryKey: ["audit-logs", params], queryFn: () => fetchAuditLogs(params), placeholderData: (previous) => previous });
 }
 
-export function useAuditFacets() {
-  return useQuery({ queryKey: ["audit-log-facets"], queryFn: fetchAuditFacets, staleTime: 60_000 });
+export function useAuditFacets(enabled = true) {
+  return useQuery({ queryKey: ["audit-log-facets"], queryFn: fetchAuditFacets, staleTime: 60_000, enabled });
 }

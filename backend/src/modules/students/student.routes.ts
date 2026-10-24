@@ -1,5 +1,6 @@
 import { Role } from "@prisma/client";
 import { Router } from "express";
+import { validateIdParams } from "../../middleware/validateIdParams.js";
 import { authenticate } from "../../middleware/authenticate.js";
 import { authorize } from "../../middleware/authorize.js";
 import { validateBody } from "../../middleware/validate.js";
@@ -20,6 +21,7 @@ import {
 import { getStudentAttendanceController } from "../attendance/attendance.controller.js";
 
 const studentRouter = Router();
+studentRouter.param("id", validateIdParams("id"));
 const adminOnly = [authenticate, authorize(Role.ADMIN)];
 
 studentRouter.use(...adminOnly);

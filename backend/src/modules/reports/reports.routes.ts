@@ -7,6 +7,7 @@
 import { Role } from "@prisma/client";
 import { Router } from "express";
 import { rateLimit } from "express-rate-limit";
+import { EXPORT_RATE_LIMIT_PER_HOUR } from "../../config/limits.js";
 import { authenticate } from "../../middleware/authenticate.js";
 import { authorize } from "../../middleware/authorize.js";
 import { reportsCatalogController, reportExportController } from "./reports.controller.js";
@@ -15,13 +16,17 @@ const router = Router();
 
 const csvExportLimiter = rateLimit({
   windowMs: 60 * 60 * 1000,
-  limit: 30,
+  limit: EXPORT_RATE_LIMIT_PER_HOUR,
   standardHeaders: true,
   legacyHeaders: false,
   keyGenerator: (req) => req.user?.id ?? "unauthenticated",
   skip: (req) => req.query.preview === "true",
-  handler: (_req, res) => {
-    res.status(429).json({ message: "You have reached the export limit. Try again in an hour." });
+  handler: (req, res) => {
+    res.status(429).json({
+      message: "You have reached the export limit. Try again in an hour.",
+      code: "RATE_LIMITED",
+      requestId: String(req.id),
+    });
   },
 });
 

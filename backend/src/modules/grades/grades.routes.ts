@@ -7,6 +7,7 @@
  */
 import { Role } from "@prisma/client";
 import { Router } from "express";
+import { validateIdParams } from "../../middleware/validateIdParams.js";
 import { authenticate } from "../../middleware/authenticate.js";
 import { authorize } from "../../middleware/authorize.js";
 import { validateBody } from "../../middleware/validate.js";
@@ -23,6 +24,9 @@ import {
 import { saveGradesSchema, termLockSchema } from "./grades.schema.js";
 
 const router = Router();
+router.param("id", validateIdParams("id"));
+router.param("schoolYearId", validateIdParams("schoolYearId"));
+router.param("termId", validateIdParams("termId"));
 router.use(authenticate);
 
 router.get("/class-offerings/:id/grades/summary", authorize(Role.ADMIN, Role.TEACHER), getClassGradesSummaryController);

@@ -1,4 +1,3 @@
-import { Role } from "@prisma/client";
 import type { RequestHandler } from "express";
 import type { ChangePasswordBody, LoginBody } from "../schemas/auth.schema.js";
 import { logAudit } from "../services/audit.service.js";
@@ -75,17 +74,4 @@ export const logoutAllController: RequestHandler = async (req, res, next) => {
   } catch (error) {
     next(error);
   }
-};
-
-export const adminTestController: RequestHandler = (_req, res) => {
-  res.status(200).json({ message: "Admin authorization successful" });
-};
-
-export const teacherTestController: RequestHandler = (_req, res) => {
-  res.status(200).json({ message: "Teacher authorization successful" });
-};
-
-export const authTestRoles = {
-  admin: [Role.ADMIN],
-  teacher: [Role.ADMIN, Role.TEACHER],
 };

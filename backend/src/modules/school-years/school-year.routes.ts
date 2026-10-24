@@ -1,5 +1,6 @@
 import { Role } from "@prisma/client";
 import { Router } from "express";
+import { validateIdParams } from "../../middleware/validateIdParams.js";
 import { authenticate } from "../../middleware/authenticate.js";
 import { authorize } from "../../middleware/authorize.js";
 import { validateBody } from "../../middleware/validate.js";
@@ -14,6 +15,9 @@ import {
 import { createSchoolYearSchema, updateSchoolYearSchema, updateTermSchema } from "./school-year.schema.js";
 
 const router = Router();
+router.param("id", validateIdParams("id"));
+router.param("schoolYearId", validateIdParams("schoolYearId"));
+router.param("termId", validateIdParams("termId"));
 router.use(authenticate);
 router.get("/", authorize(Role.ADMIN, Role.TEACHER), listSchoolYearsController);
 router.get("/current", authorize(Role.ADMIN, Role.TEACHER, Role.STUDENT), currentSchoolYearController);

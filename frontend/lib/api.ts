@@ -104,7 +104,7 @@ function findStringArray(value: unknown, key: string): string[] {
   return Array.isArray(candidate) ? candidate.filter((item): item is string => typeof item === "string") : [];
 }
 
-export async function downloadApiFile(path: string, fallbackName: string): Promise<void> {
+export async function downloadApiFile(path: string, fallbackName: string): Promise<string> {
   const response = await fetch(path, { credentials: "include", headers: { Accept: "text/csv, application/json" } });
   if (!response.ok) {
     const responseText = await response.text();
@@ -131,6 +131,7 @@ export async function downloadApiFile(path: string, fallbackName: string): Promi
   anchor.click();
   anchor.remove();
   URL.revokeObjectURL(url);
+  return filename;
 }
 
 function contentDispositionFilename(disposition: string | null): string | null {

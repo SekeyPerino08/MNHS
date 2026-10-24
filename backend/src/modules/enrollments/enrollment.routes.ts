@@ -1,5 +1,6 @@
 import { Role } from "@prisma/client";
 import { Router } from "express";
+import { validateIdParams } from "../../middleware/validateIdParams.js";
 import { authenticate } from "../../middleware/authenticate.js";
 import { authorize } from "../../middleware/authorize.js";
 import { validateBody } from "../../middleware/validate.js";
@@ -19,6 +20,7 @@ import {
 } from "./enrollment.schema.js";
 
 const router = Router();
+router.param("id", validateIdParams("id"));
 router.use(authenticate, authorize(Role.ADMIN));
 router.get("/", listEnrollmentsController);
 router.get("/unassigned", listUnassignedStudentsController);

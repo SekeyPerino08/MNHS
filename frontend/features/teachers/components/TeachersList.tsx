@@ -10,6 +10,7 @@ import { TeacherStatusDialog } from "./TeacherStatusDialog";
 import { useCreateTeacherAccount, useTeachers } from "../hooks";
 import type { Teacher, TeacherListParams } from "../types";
 import { CreateAccountDialog } from "../../../components/shared";
+import { ReportExportLink } from "../../reports/components/ReportExportLink";
 
 const defaults = { page: "1", pageSize: "10", sortBy: "lastName", order: "asc" };
 type SortKey = TeacherListParams["sortBy"];
@@ -40,6 +41,7 @@ export function TeachersList() {
     <header className="mb-7 flex flex-wrap items-center justify-between gap-4">
       <div><p className="text-sm font-semibold uppercase tracking-wide text-indigo-600">Administration</p><h1 className="mt-1 text-3xl font-bold tracking-tight text-slate-900">Teachers</h1><p className="mt-1 text-sm text-slate-500">Manage teacher records and login access.</p></div>
       <div className="flex flex-wrap gap-2">
+        <ReportExportLink report="teachers-list" filters={params.isActive === undefined ? {} : { isActive: params.isActive }} locked={["isActive"]} label="Export" className="inline-flex items-center gap-2 rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50" />
         <Link href="/admin/imports?type=teachers" className="inline-flex items-center gap-2 rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50">Import CSV</Link>
         <button type="button" onClick={() => setDialog("create")} className="inline-flex items-center gap-2 rounded-xl bg-indigo-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-indigo-700"><CirclePlus size={18} /> Add teacher</button>
       </div>

@@ -1,5 +1,6 @@
 import { StudentStatus } from "@prisma/client";
 import { z } from "zod";
+import { idSchema } from "../../utils/idSchema.js";
 
 const dateFilter = z.string()
   .regex(/^\d{4}-\d{2}-\d{2}$/, "Use YYYY-MM-DD")
@@ -18,32 +19,32 @@ const booleanFilter: z.ZodType<boolean, z.ZodTypeDef, unknown> = z.preprocess((v
 const optionalBoolean = booleanFilter.optional().default(false);
 
 export const studentsMasterlistSchema = z.object({
-  schoolYearId: z.string().trim().min(1).optional(),
+  schoolYearId: idSchema.optional(),
   gradeLevel: z.coerce.number().int().min(1).max(12).optional(),
-  sectionId: z.string().trim().min(1).optional(),
+  sectionId: idSchema.optional(),
   status: z.nativeEnum(StudentStatus).optional(),
   enrollment: z.enum(["enrolled", "unassigned", "all"]).default("all"),
   includeContact: optionalBoolean,
 });
 
 export const sectionIdSchema = z.object({
-  sectionId: z.string().trim().min(1),
+  sectionId: idSchema,
 });
 
 export const classOfferingIdSchema = z.object({
-  classOfferingId: z.string().trim().min(1),
+  classOfferingId: idSchema,
 });
 
 export const classAttendanceSchema = z.object({
-  classOfferingId: z.string().trim().min(1),
+  classOfferingId: idSchema,
   from: dateFilter.optional(),
   to: dateFilter.optional(),
   layout: z.enum(["summary", "daily"]).default("summary"),
 });
 
 export const sectionGradesSchema = z.object({
-  sectionId: z.string().trim().min(1),
-  termId: z.string().trim().min(1),
+  sectionId: idSchema,
+  termId: idSchema,
   includeUnreleased: optionalBoolean,
 });
 

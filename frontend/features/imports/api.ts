@@ -59,10 +59,10 @@ export function discardImport(id: string): Promise<void> {
 
 export function downloadImportTemplate(type: ImportType): Promise<void> {
   const file = type === "STUDENTS" ? "students" : "teachers";
-  return downloadApiFile(`/api/imports/templates/${file}.csv`, `${file}-template.csv`);
+  return downloadApiFile(`/api/imports/templates/${file}.csv`, `${file}-template.csv`).then(() => undefined);
 }
 
 export function downloadRejectedRows(id: string, fileName: string): Promise<void> {
   const fallbackName = `${fileName.replace(/\.csv$/i, "")}-rejected.csv`;
-  return downloadApiFile(`/api/imports/${encodeURIComponent(id)}/rejected.csv`, fallbackName);
+  return downloadApiFile(`/api/imports/${encodeURIComponent(id)}/rejected.csv`, fallbackName).then(() => undefined);
 }

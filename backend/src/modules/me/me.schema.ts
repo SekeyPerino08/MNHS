@@ -1,5 +1,6 @@
 import { z } from "zod";
+import { idSchema } from "../../utils/idSchema.js";
 
 export const myClassesQuerySchema = z.object({
-  schoolYearId: z.string().trim().min(1).optional(),
+  schoolYearId: idSchema.optional(),
 });

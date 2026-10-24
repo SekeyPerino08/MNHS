@@ -20,6 +20,7 @@ import { ChangeStatusDialog } from "./ChangeStatusDialog";
 import { CreateAccountDialog as StudentCreateAccountDialog } from "./CreateAccountDialog";
 import { StudentFormDialog } from "./StudentFormDialog";
 import { StudentStatusBadge } from "./StudentStatusBadge";
+import { ReportExportLink } from "../../reports/components/ReportExportLink";
 
 const urlDefaults = { page: "1", pageSize: "10", sortBy: "lastName", order: "asc" };
 
@@ -76,6 +77,10 @@ export function StudentsList() {
             <p className="mt-1 text-sm text-slate-500">Manage student records, enrollment, and login access.</p>
           </div>
           <div className="flex flex-wrap gap-2">
+            <ReportExportLink report="students-masterlist" filters={{
+              ...(params.gradeLevel ? { gradeLevel: String(params.gradeLevel) } : {}),
+              ...(params.status ? { status: params.status } : {}),
+            }} locked={["gradeLevel", "status"]} label="Export" className="inline-flex items-center gap-2 rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 shadow-sm hover:bg-slate-50" />
             <Link href="/admin/imports?type=students" className="inline-flex items-center gap-2 rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 shadow-sm hover:bg-slate-50">
               Import CSV
             </Link>

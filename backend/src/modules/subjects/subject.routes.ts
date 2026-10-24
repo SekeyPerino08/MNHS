@@ -1,5 +1,6 @@
 import { Role } from "@prisma/client";
 import { Router } from "express";
+import { validateIdParams } from "../../middleware/validateIdParams.js";
 import { authenticate } from "../../middleware/authenticate.js";
 import { authorize } from "../../middleware/authorize.js";
 import { validateBody } from "../../middleware/validate.js";
@@ -13,6 +14,7 @@ import {
 import { createSubjectSchema, updateSubjectSchema } from "./subject.schema.js";
 
 const router = Router();
+router.param("id", validateIdParams("id"));
 router.use(authenticate);
 router.get("/", authorize(Role.ADMIN, Role.TEACHER), listSubjectsController);
 router.get("/:id", authorize(Role.ADMIN, Role.TEACHER), getSubjectController);

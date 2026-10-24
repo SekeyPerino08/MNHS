@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { idSchema } from "../../utils/idSchema.js";
 
 const scoreSchema = z.number().min(0).max(100).refine(
   (score) => Math.abs(score * 100 - Math.round(score * 100)) < 1e-8,
@@ -6,9 +7,9 @@ const scoreSchema = z.number().min(0).max(100).refine(
 ).nullable();
 
 export const saveGradesSchema = z.object({
-  termId: z.string().min(1),
+  termId: idSchema,
   records: z.array(z.object({
-    studentId: z.string().min(1),
+    studentId: idSchema,
     score: scoreSchema,
     remarks: z.string().max(200).optional(),
   })).min(1).max(200).refine(
@@ -18,7 +19,7 @@ export const saveGradesSchema = z.object({
 });
 
 export const gradeSummaryQuerySchema = z.object({
-  termId: z.string().min(1).optional(),
+  termId: idSchema.optional(),
 });
 
 export const termLockSchema = z.object({
@@ -27,11 +28,11 @@ export const termLockSchema = z.object({
 });
 
 export const schoolYearQuerySchema = z.object({
-  schoolYearId: z.string().min(1).optional(),
+  schoolYearId: idSchema.optional(),
 });
 
 export const gradeOverviewQuerySchema = z.object({
-  termId: z.string().min(1),
+  termId: idSchema,
 });
 
 export type SaveGradesInput = z.infer<typeof saveGradesSchema>;

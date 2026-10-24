@@ -1,8 +1,11 @@
 import { Role } from "@prisma/client";
 import { Router, type RequestHandler } from "express";
+import { rateLimit } from "express-rate-limit";
 import multer from "multer";
+import { IMPORT_PREVIEW_RATE_LIMIT_PER_HOUR } from "../../config/limits.js";
 import { authenticate } from "../../middleware/authenticate.js";
 import { authorize } from "../../middleware/authorize.js";
+import { validateIdParams } from "../../middleware/validateIdParams.js";
 import { AppError } from "../../utils/AppError.js";
 import {
   commitImportController,
@@ -17,6 +20,21 @@ import {
 } from "./import.controller.js";
 
 const router = Router();
+router.param("id", validateIdParams("id"));
+const importPreviewLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000,
+  limit: IMPORT_PREVIEW_RATE_LIMIT_PER_HOUR,
+  standardHeaders: true,
+  legacyHeaders: false,
+  keyGenerator: (req) => req.user?.id ?? "unauthenticated",
+  handler: (req, res) => {
+    res.status(429).json({
+      message: "Too many import previews. Try again later.",
+      code: "RATE_LIMITED",
+      requestId: String(req.id),
+    });
+  },
+});
 const upload = multer({
   storage: multer.memoryStorage(),
   limits: { fileSize: 2 * 1024 * 1024, files: 1 },
@@ -40,7 +58,7 @@ const uploadCsv: RequestHandler = (request, response, next) => {
 router.use(authenticate, authorize(Role.ADMIN));
 router.get("/templates/students.csv", studentTemplateController);
 router.get("/templates/teachers.csv", teacherTemplateController);
-router.post("/preview", uploadCsv, previewController);
+router.post("/preview", importPreviewLimiter, uploadCsv, previewController);
 router.get("/", importHistoryController);
 router.get("/:id/rows", importRowsController);
 router.get("/:id/rejected.csv", rejectedCsvController);

@@ -15,8 +15,8 @@ export const meKeys = {
   enrollment: () => ["me", "enrollment"] as const,
 };
 
-export function useClassOfferings(params: Parameters<typeof fetchClassOfferings>[0]) {
-  return useQuery({ queryKey: classOfferingKeys.list(params), queryFn: () => fetchClassOfferings(params), placeholderData: (previous) => previous });
+export function useClassOfferings(params: Parameters<typeof fetchClassOfferings>[0], enabled = true) {
+  return useQuery({ queryKey: classOfferingKeys.list(params), queryFn: () => fetchClassOfferings(params), placeholderData: (previous) => previous, enabled });
 }
 export function useClassOffering(id: string) {
   return useQuery({ queryKey: classOfferingKeys.detail(id), queryFn: async () => (await fetchClassOffering(id)).data, enabled: Boolean(id) });
@@ -24,8 +24,8 @@ export function useClassOffering(id: string) {
 export function useOfferingStudents(id: string) {
   return useQuery({ queryKey: classOfferingKeys.students(id), queryFn: async () => (await fetchOfferingStudents(id)).data, enabled: Boolean(id) });
 }
-export function useMyClasses(schoolYearId?: string) {
-  return useQuery({ queryKey: meKeys.classes(schoolYearId), queryFn: () => fetchMyClasses(schoolYearId) });
+export function useMyClasses(schoolYearId?: string, enabled = true) {
+  return useQuery({ queryKey: meKeys.classes(schoolYearId), queryFn: () => fetchMyClasses(schoolYearId), enabled });
 }
 export function useMyEnrollment() {
   return useQuery({ queryKey: meKeys.enrollment(), queryFn: fetchMyEnrollment });

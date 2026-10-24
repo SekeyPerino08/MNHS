@@ -4,13 +4,12 @@ import { durationToMilliseconds } from "./duration.js";
 
 const cookieOptions = {
   httpOnly: true,
-  secure: env.NODE_ENV === "production",
-  sameSite: "lax" as const,
+  secure: env.NODE_ENV === "production" || env.COOKIE_SAMESITE === "none",
+  sameSite: env.COOKIE_SAMESITE,
   path: "/",
 };
 
 export function setAuthCookie(res: Response, token: string): void {
-  // Cross-domain production deployments (Vercel + Render) will need sameSite "none" with secure true.
   res.cookie(env.COOKIE_NAME, token, {
     ...cookieOptions,
     maxAge: durationToMilliseconds(env.JWT_EXPIRES_IN),

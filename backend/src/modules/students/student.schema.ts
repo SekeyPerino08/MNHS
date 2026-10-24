@@ -1,5 +1,6 @@
 import { StudentStatus, Sex } from "@prisma/client";
 import { z } from "zod";
+import { idSchema } from "../../utils/idSchema.js";
 import { normalizeSpaces, titleCaseName } from "../../utils/name-normalization.js";
 
 const nameSchema = (maximum = 60) =>
@@ -91,8 +92,8 @@ export const listStudentsQuerySchema = z.object({
   search: z.string().optional().transform((value) => (value ? normalizeSpaces(value) : undefined)),
   status: z.nativeEnum(StudentStatus).optional(),
   gradeLevel: z.coerce.number().int().min(7).max(12).optional(),
-  sectionId: z.string().trim().min(1).optional(),
-  schoolYearId: z.string().trim().min(1).optional(),
+  sectionId: idSchema.optional(),
+  schoolYearId: idSchema.optional(),
   sortBy: z.enum(["lastName", "firstName", "studentNo", "createdAt"]).default("lastName"),
   order: z.enum(["asc", "desc"]).default("asc"),
 });

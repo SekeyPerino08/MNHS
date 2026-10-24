@@ -9,6 +9,7 @@ import { addDays, manilaToday } from "../../../lib/dates";
 import { DataTablePagination, EmptyState, ErrorState, TableSkeleton } from "../../../components/shared";
 import { useAuditFacets, useAuditLogs } from "../hooks";
 import type { AuditEntry, AuditParams } from "../types";
+import { ReportExportLink } from "../../reports/components/ReportExportLink";
 
 const defaults = { page: "1", pageSize: "25" };
 const ACTION_LABELS: Record<string, string> = {
@@ -95,6 +96,14 @@ export function AuditPage() {
       <p className="text-sm font-semibold uppercase tracking-wide text-indigo-600">Administration</p>
       <h1 className="mt-1 text-3xl font-bold text-slate-900">Audit log</h1>
       <p className="mt-2 rounded-lg border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-950">The audit log is read-only. Entries cannot be edited or deleted.</p>
+      <div className="mt-4">
+        <ReportExportLink report="audit-log" filters={
+          url.values.from && url.values.to && dateRangeDays(url.values.from, url.values.to) <= 30
+            ? { from: url.values.from, to: url.values.to }
+            : {}
+        } locked={url.values.from && url.values.to && dateRangeDays(url.values.from, url.values.to) <= 30 ? ["from", "to"] : []}
+        label="Export" className="inline-flex items-center gap-2 rounded-lg bg-indigo-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-indigo-700" />
+      </div>
     </header>
 
     <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
@@ -142,6 +151,10 @@ export function AuditPage() {
             </>}
     </section>
   </div>;
+}
+
+function dateRangeDays(from: string, to: string): number {
+  return (new Date(`${to}T00:00:00Z`).getTime() - new Date(`${from}T00:00:00Z`).getTime()) / 86_400_000;
 }
 
 function AuditRow({ entry, expanded, onToggle }: Readonly<{ entry: AuditEntry; expanded: boolean; onToggle: () => void }>) {

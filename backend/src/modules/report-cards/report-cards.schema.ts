@@ -1,7 +1,8 @@
 import { z } from "zod";
+import { idSchema } from "../../utils/idSchema.js";
 
 export const reportCardQuerySchema = z.object({
-  schoolYearId: z.string().optional(),
+  schoolYearId: idSchema.optional(),
   includeUnreleased: z.preprocess((value) => {
     if (typeof value === "string") return value === "true" || value === "1";
     if (typeof value === "boolean") return value;

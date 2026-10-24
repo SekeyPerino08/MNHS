@@ -24,12 +24,14 @@ const navigation: Record<Role, { label: string; href: string; comingSoon?: boole
     { label: "Users", href: "/admin/users", group: "Administration" },
     { label: "Audit log", href: "/admin/audit-logs", group: "Administration" },
     { label: "Import", href: "/admin/imports", group: "Administration" },
+    { label: "Reports", href: "/admin/reports", group: "Administration" },
   ],
   TEACHER: [
     { label: "Dashboard", href: "/teacher" },
     { label: "My Classes", href: "/teacher/classes" },
     { label: "Attendance", href: "/teacher/attendance" },
     { label: "Grades", href: "/teacher/grades" },
+    { label: "Reports", href: "/teacher/reports" },
     { label: "Profile", href: "/profile" },
   ],
   STUDENT: [

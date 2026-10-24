@@ -3,6 +3,7 @@ import { Router } from "express";
 import { authenticate } from "../../middleware/authenticate.js";
 import { authorize } from "../../middleware/authorize.js";
 import { validateBody } from "../../middleware/validate.js";
+import { validateIdParams } from "../../middleware/validateIdParams.js";
 import {
   changeUserEmailController,
   createAdminUserController,
@@ -20,6 +21,7 @@ import {
 } from "./user.schema.js";
 
 const router = Router();
+router.param("id", validateIdParams("id"));
 router.use(authenticate, authorize(Role.ADMIN));
 router.get("/", listUsersController);
 router.post("/", validateBody(createAdminUserSchema), createAdminUserController);
