@@ -54,6 +54,7 @@ model User {
   student      Student?
   teacher      Teacher?
   auditLogs    AuditLog[]
+  attendanceRecords Attendance[] @relation("AttendanceRecorder")
 }
 
 model Student {
@@ -205,15 +206,18 @@ model Attendance {
   classOfferingId String
   date           DateTime         @db.Date
   status         AttendanceStatus
-  note           String?
+  remarks        String?
+  recordedById   String?
   createdAt      DateTime         @default(now())
   updatedAt      DateTime         @updatedAt
   student        Student          @relation(fields: [studentId], references: [id], onDelete: Restrict)
   classOffering  ClassOffering    @relation(fields: [classOfferingId], references: [id], onDelete: Restrict)
+  recordedBy     User?            @relation("AttendanceRecorder", fields: [recordedById], references: [id], onDelete: SetNull)
 
   @@unique([studentId, classOfferingId, date])
   @@index([studentId])
   @@index([classOfferingId])
+  @@index([recordedById])
 }
 
 model Grade {

@@ -17,10 +17,20 @@ import {
   createClassOfferingSchema,
   updateClassOfferingSchema,
 } from "./class-offering.schema.js";
+import {
+  getClassAttendanceController,
+  getClassAttendanceDatesController,
+  getClassAttendanceSummaryController,
+  saveClassAttendanceController,
+} from "../attendance/attendance.controller.js";
 
 const router = Router();
 router.use(authenticate);
 router.get("/", authorize(Role.ADMIN), listClassOfferingsController);
+router.get("/:id/attendance/summary", getClassAttendanceSummaryController);
+router.get("/:id/attendance/dates", getClassAttendanceDatesController);
+router.get("/:id/attendance", getClassAttendanceController);
+router.put("/:id/attendance", saveClassAttendanceController);
 router.get("/:id/students", authorize(Role.ADMIN, Role.TEACHER), getClassOfferingStudentsController);
 router.get("/:id", authorize(Role.ADMIN, Role.TEACHER), getClassOfferingController);
 router.post("/", authorize(Role.ADMIN), validateBody(createClassOfferingSchema), createClassOfferingController);

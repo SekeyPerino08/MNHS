@@ -17,12 +17,14 @@ import {
   updateStatusSchema,
   updateStudentSchema,
 } from "./student.schema.js";
+import { getStudentAttendanceController } from "../attendance/attendance.controller.js";
 
 const studentRouter = Router();
 const adminOnly = [authenticate, authorize(Role.ADMIN)];
 
 studentRouter.use(...adminOnly);
 studentRouter.get("/", listStudentsController);
+studentRouter.get("/:id/attendance", getStudentAttendanceController);
 studentRouter.get("/:id", getStudentController);
 studentRouter.post("/", validateBody(createStudentSchema), createStudentController);
 studentRouter.patch("/:id", validateBody(updateStudentSchema), updateStudentController);
